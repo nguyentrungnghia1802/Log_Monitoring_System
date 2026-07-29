@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://root:example_password@localhost:27017/log_monitor?authSource=admin}
+
+logging:
+  level:
+    root: INFO
+    com.example.logmonitor: DEBUG

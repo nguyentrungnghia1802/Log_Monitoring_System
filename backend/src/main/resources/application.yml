@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: log-monitoring-system
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  data:
+    mongodb:
+      auto-index-creation: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+ingestion:
+  queue:
+    capacity: ${INGESTION_QUEUE_CAPACITY:50000}
+  workers: ${INGESTION_WORKER_COUNT:4}
+  batch:
+    max-size: ${INGESTION_BATCH_MAX_SIZE:500}
+    max-wait-ms: ${INGESTION_BATCH_MAX_WAIT_MS:500}
+  enqueue-timeout-ms: ${INGESTION_ENQUEUE_TIMEOUT_MS:5}

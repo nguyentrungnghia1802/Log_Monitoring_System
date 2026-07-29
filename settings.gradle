@@ -1,0 +1,6 @@
+rootProject.name = 'log-monitoring-system'
+
+include 'backend'
+include 'sdk:log-monitoring-java-sdk'
+include 'sdk:log-monitoring-spring-boot-starter'
+include 'examples:java-demo'

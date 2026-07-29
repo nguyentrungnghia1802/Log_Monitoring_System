@@ -1,0 +1,300 @@
+# Development and Testing
+
+## 1. Prerequisites
+
+- JDK 21
+- Docker Desktop / Docker Compose
+- Node.js 20+ for frontend tooling
+- MongoDB through Docker for standard local development
+- Gradle wrapper or Maven wrapper committed to the repository
+
+Use one build tool for backend; this specification assumes **Gradle** examples unless the repository chooses Maven before implementation.
+
+---
+
+## 2. Local environment
+
+Recommended services:
+
+```text
+frontend   : 5173
+backend    : 8080
+mongodb    : 27017
+```
+
+Example:
+
+```bash
+docker compose up -d mongodb
+./gradlew bootRun
+cd frontend && npm install && npm run dev
+```
+
+---
+
+## 3. Configuration
+
+Suggested environment/application properties:
+
+```text
+SPRING_PROFILES_ACTIVE=local
+
+MONGODB_URI=mongodb://localhost:27017/log_monitor
+
+JWT_SECRET=...
+INGESTION_QUEUE_CAPACITY=50000
+INGESTION_WORKER_COUNT=4
+INGESTION_BATCH_MAX_SIZE=500
+INGESTION_BATCH_MAX_WAIT_MS=500
+INGESTION_ENQUEUE_TIMEOUT_MS=5
+
+ALERT_NOTIFICATION_MODE=mock
+```
+
+Secrets must not be committed.
+
+---
+
+## 4. Local seed
+
+Seed only enough data to develop:
+
+- one organization;
+- one admin user;
+- one project named `LINE Smart Queue Assistant`;
+- one development ingestion API key;
+- optional sample alert rule.
+
+Raw API-key secret may be printed once by an explicit local seed command, never on every application startup.
+
+---
+
+## 5. Test strategy
+
+| Layer | Tool | Focus |
+| --- | --- | --- |
+| Pure unit | JUnit 5 | normalizer, retention, fingerprints, cursor, alert policy |
+| Concurrency unit/integration | JUnit 5 | bounded admission, worker drain, shutdown, races |
+| Repository integration | Testcontainers MongoDB | indexes, queries, aggregation, bulk write |
+| API integration | Spring Boot Test / MockMvc | auth, status codes, validation |
+| WebSocket integration | Spring test client | authorization/filtering/fan-out |
+| Frontend unit/component | Vitest + Testing Library | filters, dashboards, live-tail behavior |
+| Browser E2E | Playwright | login, key creation, ingestion, search, alert flow |
+| Load | k6 or Gatling | ingestion latency/throughput/backpressure |
+
+---
+
+## 6. Critical unit tests
+
+### Ingestion
+
+- valid level normalization;
+- missing required field rejected;
+- oversized message/context rejected;
+- server cannot be given tenant/project authority through payload;
+- `expireAt` computed from retention;
+- API key revoked path.
+
+### Queue
+
+- admission succeeds below capacity;
+- queue exactly at capacity rejects;
+- concurrent producers never exceed configured capacity;
+- batch drain respects max size;
+- interruption exits workers cleanly.
+
+### Alerting
+
+- threshold below boundary does not trigger;
+- threshold crossing triggers;
+- cooldown prevents duplicate occurrence;
+- cooldown expiry permits new trigger;
+- delivery failure persists occurrence.
+
+---
+
+## 7. MongoDB integration tests
+
+Must use a real MongoDB container for behaviors that mocks cannot validate.
+
+Test:
+
+- TTL index definition;
+- compound index presence;
+- bulk insert;
+- project/time search;
+- trace/request lookup;
+- cursor pagination with equal timestamps;
+- aggregation buckets;
+- top services/errors;
+- authorization repository scope.
+
+TTL deletion timing itself should not use fragile exact-second assertions.
+
+---
+
+## 8. Failure injection tests
+
+### MongoDB outage
+
+1. fill queue partially;
+2. stop MongoDB container;
+3. verify worker failures/retries;
+4. verify readiness fails;
+5. continue ingesting until queue capacity;
+6. verify backpressure response;
+7. restore MongoDB;
+8. verify workers recover and queue drains where retries have not been exhausted.
+
+### Notification outage
+
+- provider mock throws;
+- occurrence remains persisted;
+- retry state increments;
+- source logs remain unaffected.
+
+### Process shutdown
+
+- queue has events;
+- send SIGTERM;
+- readiness flips;
+- producer admission stops;
+- worker drains within timeout;
+- application exits.
+
+---
+
+## 9. Load test plan
+
+Load tests are a core deliverable, not an afterthought.
+
+### Test A — baseline single ingestion
+
+Measure:
+
+- requests/sec;
+- p50/p95/p99 enqueue response;
+- queue depth;
+- worker throughput;
+- Mongo batch latency;
+- CPU;
+- heap;
+- GC.
+
+### Test B — batch ingestion
+
+Compare:
+
+```text
+1000 HTTP calls x 1 event
+vs
+1 HTTP call x 1000 events
+```
+
+Use equivalent event volume and record total overhead.
+
+### Test C — Mongo slowdown
+
+Artificially reduce persistence capacity and verify graceful backpressure.
+
+### Test D — query under ingestion load
+
+Run dashboard/search traffic while ingestion continues and observe interference.
+
+---
+
+## 10. Performance experiment discipline
+
+Every optimization should record:
+
+```text
+Hypothesis
+Baseline
+Change
+Measurement
+Result
+Decision
+```
+
+Examples:
+
+- batch size 100 vs 500 vs 1000;
+- worker count 2 vs 4 vs 8;
+- index A vs index B;
+- raw search projection vs full document;
+- message compression only if network profile justifies it.
+
+Avoid tuning by intuition only.
+
+---
+
+## 11. Suggested validation commands
+
+Backend:
+
+```bash
+./gradlew clean test
+./gradlew integrationTest
+./gradlew bootJar
+```
+
+Frontend:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+E2E/load scripts should be standardized later in repository scripts.
+
+---
+
+## 12. Static/security checks
+
+Recommended CI roadmap:
+
+- Spotless or equivalent formatting;
+- Checkstyle/PMD/SpotBugs where useful;
+- dependency vulnerability scan;
+- secret scanning;
+- frontend lint/typecheck;
+- container scan;
+- test coverage thresholds only for meaningful critical modules.
+
+Coverage percentage must not replace behavioral test quality.
+
+---
+
+## 13. Manual acceptance scenario with LINE Smart Queue
+
+1. Start monitoring platform.
+2. Create project/API key.
+3. Configure LINE Smart Queue to send structured logs.
+4. Trigger a normal queue creation.
+5. Confirm event appears in search.
+6. Trigger `QUEUE_CREATE_FAILED`.
+7. Confirm trace/request correlation.
+8. Open Live Tail and see matching error.
+9. Configure rule `QUEUE_CREATE_FAILED >= N/min`.
+10. Generate threshold traffic.
+11. Confirm one alert occurrence and notification.
+12. Confirm cooldown suppresses duplicates.
+13. Verify retention policy is visible.
+
+---
+
+## 14. Definition of done
+
+A backend feature is not done until:
+
+- requirement is satisfied;
+- tests cover success/failure;
+- concurrency behavior is considered;
+- metrics exist where operationally relevant;
+- security/redaction is reviewed;
+- docs are updated;
+- performance impact is measured when high-volume paths change.
+
+For ingestion-path changes, load/backpressure behavior is part of correctness.

@@ -1,0 +1,9 @@
+rootProject.name = 'log-monitoring-system'
+
+include 'sdk:log-monitoring-java-sdk'
+include 'sdk:log-monitoring-spring-boot-starter'
+include 'examples:java-demo'
+
+project(':sdk:log-monitoring-java-sdk').projectDir = file('../sdk/log-monitoring-java-sdk')
+project(':sdk:log-monitoring-spring-boot-starter').projectDir = file('../sdk/log-monitoring-spring-boot-starter')
+project(':examples:java-demo').projectDir = file('../examples/java-demo')
