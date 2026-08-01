@@ -46,12 +46,6 @@ public class ApiKeyService {
     }
 
     public Optional<ApiKey> validateApiKey(String rawApiKey) {
-        if ("demo-api-key".equalsIgnoreCase(rawApiKey)) {
-            ApiKey demoKey = new ApiKey("demo-project", "Demo Key", "demo", "hashed");
-            demoKey.setId("demo-key");
-            return Optional.of(demoKey);
-        }
-
         if (rawApiKey == null || !rawApiKey.startsWith(KEY_PREFIX_HEADER)) {
             return Optional.empty();
         }

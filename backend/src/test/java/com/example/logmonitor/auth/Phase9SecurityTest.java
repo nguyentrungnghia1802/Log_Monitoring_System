@@ -2,19 +2,27 @@ package com.example.logmonitor.auth;
 
 import com.example.logmonitor.apikey.application.ApiKeyService;
 import com.example.logmonitor.apikey.domain.ApiKeyRepository;
+import com.example.logmonitor.alerting.domain.AlertOccurrence;
+import com.example.logmonitor.alerting.domain.AlertOccurrenceRepository;
+import com.example.logmonitor.alerting.domain.AlertRule;
+import com.example.logmonitor.alerting.domain.AlertRuleRepository;
 import com.example.logmonitor.auth.application.JwtService;
 import com.example.logmonitor.auth.domain.ProjectMembership;
 import com.example.logmonitor.auth.domain.ProjectMembershipRepository;
 import com.example.logmonitor.auth.domain.Role;
 import com.example.logmonitor.auth.domain.User;
 import com.example.logmonitor.auth.domain.UserRepository;
+import com.example.logmonitor.persistence.LogEventDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +37,9 @@ class Phase9SecurityTest {
     private MockMvc mockMvc;
 
     @Autowired
+    private MongoTemplate mongoTemplate;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -39,6 +50,12 @@ class Phase9SecurityTest {
 
     @Autowired
     private ApiKeyRepository apiKeyRepository;
+
+    @Autowired
+    private AlertRuleRepository alertRuleRepository;
+
+    @Autowired
+    private AlertOccurrenceRepository alertOccurrenceRepository;
 
     @Autowired
     private JwtService jwtService;
@@ -53,6 +70,8 @@ class Phase9SecurityTest {
         userRepository.deleteAll();
         membershipRepository.deleteAll();
         apiKeyRepository.deleteAll();
+        alertRuleRepository.deleteAll();
+        alertOccurrenceRepository.deleteAll();
 
         User user = userRepository.save(new User(null, "operator_user", "op@example.com", "hash", "org1"));
         userId = user.getId();
@@ -77,6 +96,61 @@ class Phase9SecurityTest {
         mockMvc.perform(get("/api/v1/projects/foreign-project/logs")
                 .header("Authorization", "Bearer " + userToken))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void doesNotExposeForeignLogThroughProjectScopedDetail() throws Exception {
+        LogEventDocument foreignLog = new LogEventDocument(
+            "foreign-event", Instant.now(), "ERROR", "foreign-service", "prod",
+            "FOREIGN_FAILURE", "foreign project event", null, null, null, null, null,
+            Instant.now(), Instant.now().plusSeconds(3600), "org-2", "foreign-project", "foreign-key", "FOREIGN_FAILURE"
+        );
+        String foreignLogId = mongoTemplate.save(foreignLog).getId();
+
+        mockMvc.perform(get("/api/v1/projects/project-a/logs/" + foreignLogId)
+                .header("Authorization", "Bearer " + userToken))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rejectsMemberAccessingForeignProjectAnalytics() throws Exception {
+        mockMvc.perform(get("/api/v1/projects/foreign-project/analytics/summary")
+                .header("Authorization", "Bearer " + userToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void doesNotExposeForeignProjectNestedAlertResources() throws Exception {
+        AlertRule foreignRule = new AlertRule();
+        foreignRule.setName("Foreign rule");
+        foreignRule.setProjectId("foreign-project");
+        String foreignRuleId = alertRuleRepository.save(foreignRule).getId();
+
+        AlertOccurrence foreignOccurrence = new AlertOccurrence();
+        foreignOccurrence.setRuleId(foreignRuleId);
+        foreignOccurrence.setRuleName("Foreign rule");
+        foreignOccurrence.setProjectId("foreign-project");
+        String foreignOccurrenceId = alertOccurrenceRepository.save(foreignOccurrence).getId();
+
+        mockMvc.perform(get("/api/v1/projects/project-a/alert-rules/" + foreignRuleId)
+                .header("Authorization", "Bearer " + userToken))
+            .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/projects/project-a/alerts/" + foreignOccurrenceId)
+                .header("Authorization", "Bearer " + userToken))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rejectsUnauthenticatedProjectAccess() throws Exception {
+        mockMvc.perform(get("/api/v1/projects/project-a/logs"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void protectsSystemStatusFromAnonymousUsers() throws Exception {
+        mockMvc.perform(get("/api/v1/system/ingestion-status"))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test

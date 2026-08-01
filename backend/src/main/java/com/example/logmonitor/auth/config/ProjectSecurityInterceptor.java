@@ -1,9 +1,9 @@
 package com.example.logmonitor.auth.config;
 
-import com.example.logmonitor.auth.application.JwtService;
-import com.example.logmonitor.auth.domain.ProjectMembership;
-import com.example.logmonitor.auth.domain.ProjectMembershipRepository;
-import com.example.logmonitor.auth.domain.Role;
+import com.example.logmonitor.auth.application.ProjectAuthorizationService;
+import com.example.logmonitor.auth.application.ProjectAuthorizationService.AuthorizationDecision;
+import com.example.logmonitor.auth.application.ProjectAuthorizationService.Failure;
+import com.example.logmonitor.auth.application.ProjectAuthorizationService.Permission;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -13,15 +13,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
 import java.util.Map;
-import java.util.Optional;
 
 @Component
 public class ProjectSecurityInterceptor implements HandlerInterceptor {
 
-    private final ProjectMembershipRepository membershipRepository;
+    private final ProjectAuthorizationService authorizationService;
 
-    public ProjectSecurityInterceptor(ProjectMembershipRepository membershipRepository) {
-        this.membershipRepository = membershipRepository;
+    public ProjectSecurityInterceptor(ProjectAuthorizationService authorizationService) {
+        this.authorizationService = authorizationService;
     }
 
     @Override
@@ -34,52 +33,32 @@ public class ProjectSecurityInterceptor implements HandlerInterceptor {
         }
 
         String projectId = pathVariables.get("projectId");
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Permission permission = isReadMethod(request.getMethod()) ? Permission.READ : Permission.WRITE;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        AuthorizationDecision decision = authorizationService.authorize(authentication, projectId, permission);
 
-        if (auth == null || !auth.isAuthenticated()) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"error\": \"Authentication required\"}");
-            return false;
-        }
-
-        Object principal = auth.getPrincipal();
-
-        if (principal instanceof ApiKeyAuthenticationFilter.ApiKeyPrincipal apiKeyPrincipal) {
-            if (!projectId.equals(apiKeyPrincipal.projectId())) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().write("{\"error\": \"API key not authorized for project\"}");
-                return false;
-            }
+        if (decision.allowed()) {
             return true;
         }
 
-        if (principal instanceof JwtService.UserPrincipal userPrincipal) {
-            Optional<ProjectMembership> membership = membershipRepository.findByUserIdAndProjectId(userPrincipal.userId(), projectId);
-            if (membership.isEmpty()) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().write("{\"error\": \"Forbidden: User not a member of project\"}");
-                return false;
-            }
-
-            Role role = membership.get().getRole();
-            String method = request.getMethod();
-
-            if ("GET".equalsIgnoreCase(method)) {
-                // All roles (ADMIN, OPERATOR, VIEWER) can read
-                return true;
-            }
-
-            if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) {
-                if (role == Role.VIEWER) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("{\"error\": \"Forbidden: Read-only VIEWER role cannot mutate project resources\"}");
-                    return false;
-                }
-            }
-            return true;
+        if (decision.failure() == Failure.UNAUTHENTICATED) {
+            return writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                "UNAUTHENTICATED", "Authentication required");
         }
+        return writeError(response, HttpServletResponse.SC_FORBIDDEN,
+            "FORBIDDEN", "Project access denied");
+    }
 
-        // Default allow for test/mock fallback if enabled
-        return true;
+    private boolean isReadMethod(String method) {
+        return "GET".equalsIgnoreCase(method)
+            || "HEAD".equalsIgnoreCase(method)
+            || "OPTIONS".equalsIgnoreCase(method);
+    }
+
+    private boolean writeError(HttpServletResponse response, int status, String code, String message) throws Exception {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
+        return false;
     }
 }

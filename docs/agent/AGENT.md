@@ -10,8 +10,11 @@ For every task, read:
 
 1. `README.md`
 2. `AGENTS.md`
-3. `docs/project/00_PROJECT_CONTEXT.md`
-4. The relevant source files and tests
+3. `docs/PROJECT_COMPLETION_CHECKLIST.md`
+4. `docs/project/00_PROJECT_CONTEXT.md`
+5. The relevant source files and tests
+
+`docs/PROJECT_COMPLETION_CHECKLIST.md` is the canonical execution tracker for the remaining work. When the user asks to continue, proceed, work on the next part, or gives no specific feature scope, use this checklist to determine the next coherent task automatically.
 
 Add the following documents according to task type:
 
@@ -25,6 +28,44 @@ Add the following documents according to task type:
 | Deployment/operations | `docs/project/08_DEPLOYMENT_AND_OPERATIONS.md`, Docker/Compose/CI files, runtime configuration |
 
 Do not introduce architecture based only on familiarity with another project. The Log Monitoring System specifications are authoritative for this repository.
+
+## Project completion checklist workflow
+
+`docs/PROJECT_COMPLETION_CHECKLIST.md` is the source of truth for project progress and remaining work.
+
+For every coding task:
+
+1. Read the checklist before planning or editing code.
+2. Compare checklist status with the actual implementation, tests, configuration, and documentation.
+3. Never trust a checked item blindly; verify it when the current task depends on it.
+4. If the user only asks to continue the project, select the highest-priority unblocked incomplete milestone or the next smallest coherent group of related checklist items.
+5. Respect the execution order, V1 release gates, blocking items, and V1/V2 boundary defined in the checklist.
+6. Do not begin optional V2 work while blocking V1 items remain unless the user explicitly requests it and an accepted ADR permits it.
+7. Keep the selected scope small enough to implement, test, document, and leave the repository in a working state.
+8. After implementation and validation, update the checklist in the same change.
+9. Mark an item `[x]` only when the implementation exists and the relevant validation actually passed.
+10. Use `[~]` for partially completed work, `[!]` for a confirmed blocker, and leave `[ ]` for incomplete work.
+11. Add a concise evidence note beside or beneath updated items when useful, including the main implementation files, tests, validation command, or reason an item remains incomplete.
+12. Do not mark an entire milestone complete when only part of it is implemented.
+13. Do not rewrite unchecked requirements merely to make the current implementation appear complete.
+14. If the checklist disagrees with code or canonical specifications, report the conflict and update the checklist, code, tests, and affected canonical documents consistently.
+15. At final handoff, state which checklist sections and items were updated and identify the next recommended incomplete item.
+
+A generic instruction such as “continue the project” should therefore be interpreted as:
+
+```text
+Read AGENTS.md
+-> Read PROJECT_COMPLETION_CHECKLIST.md
+-> Verify current repository state
+-> Select the next highest-priority coherent incomplete slice
+-> Implement it
+-> Test and validate it
+-> Update canonical docs
+-> Update PROJECT_COMPLETION_CHECKLIST.md with evidence
+-> Report the next remaining slice
+```
+
+The checklist is a progress tracker, not a substitute for the product, architecture, database, API, testing, or operations specifications. Those canonical documents still define the required behavior.
 
 ## Sources of truth
 
@@ -317,8 +358,11 @@ ingestion.worker.active
 ingestion.batch.size
 ingestion.persistence.duration
 ingestion.persistence.failures
-livetail.sessions
-livetail.dropped
+livetail.sessions.active
+livetail.subscriptions.active
+livetail.events.sent
+livetail.events.dropped
+livetail.authorization.failures
 alert.evaluations
 alert.triggered
 alert.delivery.success
@@ -388,6 +432,10 @@ Never raise queue capacity, worker count, or batch size as a performance fix wit
 
 A change is complete only when:
 
+- the corresponding items in `docs/PROJECT_COMPLETION_CHECKLIST.md` have been reviewed and updated accurately;
+- completed checklist items include sufficient implementation or validation evidence;
+- the next recommended incomplete checklist slice is identified in the final handoff;
+
 - behavior matches canonical requirements;
 - tenant/project authorization is enforced;
 - ingestion durability semantics remain honest;
@@ -420,12 +468,83 @@ Suggested branch names:
 - `perf/<short-name>`
 - `chore/<short-name>`
 
+
+## Autonomous Git workflow
+
+When autonomous development is allowed for this repository, follow this workflow after every completed checklist slice:
+
+1. Check the current Git status.
+2. Synchronize with the default branch if required by the repository workflow.
+3. Create or continue the appropriate feature branch.
+4. Implement the selected checklist slice.
+5. Run all relevant validation and tests.
+6. Update all affected canonical documentation.
+7. Update `docs/PROJECT_COMPLETION_CHECKLIST.md` with accurate status and evidence.
+8. Review the complete diff for unrelated changes, generated artifacts, or secrets.
+9. Stage only files related to the completed work.
+10. Create a Conventional Commit referencing the completed checklist slice.
+11. Push the feature branch.
+12. If the repository uses Pull Requests:
+    - create or update the Pull Request;
+    - resolve review comments if present;
+    - merge only after all required checks pass.
+13. After merge:
+    - synchronize the local default branch;
+    - verify the working tree is clean;
+    - continue automatically with the next highest-priority incomplete checklist slice.
+
+## Commit policy
+
+- Commit after every logically complete checklist slice.
+- Do not accumulate large unrelated changes into a single commit.
+- Use Conventional Commits.
+
+Preferred prefixes:
+
+- feat:
+- fix:
+- refactor:
+- perf:
+- docs:
+- test:
+- build:
+- ci:
+- chore:
+
+Commit messages should clearly describe the completed checklist slice or milestone.
+
+## Branch policy
+
+Prefer one feature branch per milestone.
+
+Suggested branch names:
+
+- feat/security-hardening
+- feat/project-management
+- feat/java-sdk
+- feat/load-testing
+- feat/line-smart-queue-integration
+- fix/live-tail-authorization
+- perf/bulk-persistence
+
 ## Git safety
 
 - Never run destructive Git commands against unrelated work.
 - Never use `git reset --hard`, destructive checkout, force push, or broad file deletion unless explicitly requested and safe.
 - Do not amend or rewrite user commits unless explicitly requested.
-- Do not merge or push automatically unless the user explicitly asks or repository workflow explicitly authorizes the agent to do so.
+- Do not merge or push automatically unless:
+  - the repository workflow explicitly allows autonomous commits;
+  - all required validation and CI checks pass;
+  - no unresolved merge conflicts exist;
+  - no manual approval is required by repository policy.
+
+If autonomous workflow is enabled for this repository:
+
+- commit after every completed checklist slice;
+- push the feature branch;
+- create or update the Pull Request if applicable;
+- merge after required checks succeed;
+- continue automatically with the next highest-priority incomplete checklist slice.
 - Never commit `.env`, secrets, database dumps, generated load-test output, or production logs.
 - Before committing, inspect staged changes.
 
@@ -438,7 +557,11 @@ Report:
 3. tests/checks run and their result;
 4. tests/checks not run and why;
 5. documentation updated;
-6. remaining risks or follow-up work.
+6. the exact sections/items updated in `docs/PROJECT_COMPLETION_CHECKLIST.md`;
+7. remaining risks or blockers;
+8. the next highest-priority coherent incomplete checklist slice.
+
+Before finishing, verify that checklist status reflects actual code and validation results. Do not leave completed work unchecked, and do not mark unverified work complete.
 
 For ingestion changes, explicitly mention whether the change affects:
 
@@ -450,3 +573,44 @@ For ingestion changes, explicitly mention whether the change affects:
 - performance characteristics.
 
 Do not describe V1 as durable until an accepted architecture change makes admission durable.
+
+
+## Autonomous development loop
+
+When the user simply says "continue the project", "continue", or provides no feature-specific instructions, interpret it as:
+
+```text
+Read AGENTS.md
+        ↓
+Read PROJECT_COMPLETION_CHECKLIST.md
+        ↓
+Verify current repository state
+        ↓
+Select next highest-priority incomplete checklist slice
+        ↓
+Implement
+        ↓
+Run tests and validation
+        ↓
+Update canonical documentation
+        ↓
+Update PROJECT_COMPLETION_CHECKLIST.md
+        ↓
+Commit
+        ↓
+Push
+        ↓
+Create/Update Pull Request (if applicable)
+        ↓
+Merge after required checks
+        ↓
+Synchronize main/default branch
+        ↓
+Repeat
+```
+
+Do not stop after implementation unless:
+- a confirmed blocker exists;
+- required information is missing;
+- repository policy requires human approval;
+- the user explicitly requests to stop.

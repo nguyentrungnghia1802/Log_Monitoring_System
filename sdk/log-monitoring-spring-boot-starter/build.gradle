@@ -21,3 +21,13 @@ dependencies {
     implementation project(':sdk:log-monitoring-java-sdk')
     implementation 'org.springframework.boot:spring-boot-starter'
 }
+
+// This project is a reusable starter library, not an executable application.
+// Keep the Boot plugin for dependency management, but publish a regular JAR.
+tasks.named('bootJar') {
+    enabled = false
+}
+
+tasks.named('jar') {
+    enabled = true
+}

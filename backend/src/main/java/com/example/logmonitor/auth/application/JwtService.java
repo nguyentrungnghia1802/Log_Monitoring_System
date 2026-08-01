@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.util.Date;
 import java.util.Optional;
 
@@ -61,5 +62,10 @@ public class JwtService {
         }
     }
 
-    public record UserPrincipal(String userId, String username, String organizationId) {}
+    public record UserPrincipal(String userId, String username, String organizationId) implements Principal {
+        @Override
+        public String getName() {
+            return userId;
+        }
+    }
 }

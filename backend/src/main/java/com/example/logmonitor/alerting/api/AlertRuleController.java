@@ -25,42 +25,42 @@ public class AlertRuleController {
 
     @PostMapping
     public ResponseEntity<AlertRule> createRule(@PathVariable String projectId, @RequestBody AlertRule rule) {
-        rule.setProjectId(projectId);
-        AlertRule created = alertService.createRule(rule);
+        AlertRule created = alertService.createRule(projectId, rule);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/{ruleId}")
     public ResponseEntity<AlertRule> getRule(@PathVariable String projectId, @PathVariable String ruleId) {
-        return alertService.getRule(ruleId)
+        return alertService.getRule(projectId, ruleId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PatchMapping("/{ruleId}")
     public ResponseEntity<AlertRule> updateRule(@PathVariable String projectId, @PathVariable String ruleId, @RequestBody AlertRule updated) {
-        return alertService.updateRule(ruleId, updated)
+        return alertService.updateRule(projectId, ruleId, updated)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{ruleId}/enable")
     public ResponseEntity<AlertRule> enableRule(@PathVariable String projectId, @PathVariable String ruleId) {
-        return alertService.setRuleEnabled(ruleId, true)
+        return alertService.setRuleEnabled(projectId, ruleId, true)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{ruleId}/disable")
     public ResponseEntity<AlertRule> disableRule(@PathVariable String projectId, @PathVariable String ruleId) {
-        return alertService.setRuleEnabled(ruleId, false)
+        return alertService.setRuleEnabled(projectId, ruleId, false)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{ruleId}")
     public ResponseEntity<Void> deleteRule(@PathVariable String projectId, @PathVariable String ruleId) {
-        alertService.deleteRule(ruleId);
-        return ResponseEntity.noContent().build();
+        return alertService.deleteRule(projectId, ruleId)
+            ? ResponseEntity.noContent().build()
+            : ResponseEntity.notFound().build();
     }
 }

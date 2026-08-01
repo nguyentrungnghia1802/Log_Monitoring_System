@@ -44,18 +44,19 @@ public class AlertService {
         return ruleRepository.findByProjectId(projectId);
     }
 
-    public AlertRule createRule(AlertRule rule) {
+    public AlertRule createRule(String projectId, AlertRule rule) {
+        rule.setProjectId(projectId);
         rule.setCreatedAt(Instant.now());
         rule.setUpdatedAt(Instant.now());
         return ruleRepository.save(rule);
     }
 
-    public Optional<AlertRule> getRule(String ruleId) {
-        return ruleRepository.findById(ruleId);
+    public Optional<AlertRule> getRule(String projectId, String ruleId) {
+        return ruleRepository.findByIdAndProjectId(ruleId, projectId);
     }
 
-    public Optional<AlertRule> updateRule(String ruleId, AlertRule updated) {
-        return ruleRepository.findById(ruleId).map(rule -> {
+    public Optional<AlertRule> updateRule(String projectId, String ruleId, AlertRule updated) {
+        return ruleRepository.findByIdAndProjectId(ruleId, projectId).map(rule -> {
             if (updated.getName() != null) rule.setName(updated.getName());
             if (updated.getEnvironment() != null) rule.setEnvironment(updated.getEnvironment());
             if (updated.getService() != null) rule.setService(updated.getService());
@@ -69,16 +70,21 @@ public class AlertService {
         });
     }
 
-    public Optional<AlertRule> setRuleEnabled(String ruleId, boolean enabled) {
-        return ruleRepository.findById(ruleId).map(rule -> {
+    public Optional<AlertRule> setRuleEnabled(String projectId, String ruleId, boolean enabled) {
+        return ruleRepository.findByIdAndProjectId(ruleId, projectId).map(rule -> {
             rule.setEnabled(enabled);
             rule.setUpdatedAt(Instant.now());
             return ruleRepository.save(rule);
         });
     }
 
-    public void deleteRule(String ruleId) {
-        ruleRepository.deleteById(ruleId);
+    public boolean deleteRule(String projectId, String ruleId) {
+        return ruleRepository.findByIdAndProjectId(ruleId, projectId)
+            .map(rule -> {
+                ruleRepository.delete(rule);
+                return true;
+            })
+            .orElse(false);
     }
 
     public void evaluateRulesForProject(String projectId) {
@@ -172,20 +178,20 @@ public class AlertService {
         return occurrenceRepository.findByProjectId(projectId);
     }
 
-    public Optional<AlertOccurrence> getAlert(String alertId) {
-        return occurrenceRepository.findById(alertId);
+    public Optional<AlertOccurrence> getAlert(String projectId, String alertId) {
+        return occurrenceRepository.findByIdAndProjectId(alertId, projectId);
     }
 
-    public Optional<AlertOccurrence> acknowledgeAlert(String alertId) {
-        return occurrenceRepository.findById(alertId).map(occ -> {
+    public Optional<AlertOccurrence> acknowledgeAlert(String projectId, String alertId) {
+        return occurrenceRepository.findByIdAndProjectId(alertId, projectId).map(occ -> {
             occ.setStatus("ACKNOWLEDGED");
             return occurrenceRepository.save(occ);
         });
     }
 
-    public Optional<AlertOccurrence> retryNotification(String alertId) {
-        return occurrenceRepository.findById(alertId).map(occ -> {
-            AlertRule rule = ruleRepository.findById(occ.getRuleId()).orElse(null);
+    public Optional<AlertOccurrence> retryNotification(String projectId, String alertId) {
+        return occurrenceRepository.findByIdAndProjectId(alertId, projectId).map(occ -> {
+            AlertRule rule = ruleRepository.findByIdAndProjectId(occ.getRuleId(), projectId).orElse(null);
             dispatchNotification(occ, rule);
             return occ;
         });

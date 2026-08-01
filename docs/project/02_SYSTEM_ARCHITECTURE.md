@@ -203,17 +203,25 @@ LiveTailPublisher
     v
 Subscription Registry
     |
-    +--> session A: project=P1, level>=WARN
-    +--> session B: project=P1, service=payment
+    +--> session A: user=U1, project=P1, level=ERROR
+    +--> session B: user=U2, project=P1, service=payment
+                    |
+                    v
+              /user/queue/projects/P1/livetail
 ```
 
 Rules:
 
-- all subscriptions are authorized server-side;
-- project ID comes from authenticated scope;
-- server filters before fan-out;
-- one slow client cannot block ingestion/persistence workers;
-- per-session buffer/rate limits are bounded;
+- STOMP `CONNECT` requires a signed, non-expired JWT;
+- subscription destinations are user destinations, not public project topics;
+- `ProjectAuthorizationService` checks the current organization and membership
+  when each subscription is created;
+- server filters before fan-out using bounded level/service/environment values;
+- connection, subscription, inbound/outbound channel, and transport buffers are
+  bounded;
+- a saturated outbound channel drops the live event and transport limits allow
+  a slow client to be disconnected without blocking persistence;
+- disconnect and `SessionDisconnectEvent` both remove session state;
 - WebSocket disconnect is normal and has no effect on persisted logs.
 
 ---
@@ -267,7 +275,11 @@ V1 can begin with in-process evaluation. Horizontal scaling requires a later own
 - email/password;
 - password hash;
 - short-lived access JWT;
-- authorization by organization/project membership;
+- authorization by organization/project membership through the centralized
+  `ProjectAuthorizationService`;
+- every project-scoped resource query carries the authorized `projectId`,
+  including nested alert rule and occurrence IDs;
+- viewer role is read-only;
 - admin operations audited.
 
 ### Ingestion clients
@@ -388,8 +400,11 @@ ingestion.batch.size
 ingestion.persistence.duration
 ingestion.persistence.failures
 mongodb.command.duration
-livetail.sessions
-livetail.dropped
+livetail.sessions.active
+livetail.subscriptions.active
+livetail.events.sent
+livetail.events.dropped
+livetail.authorization.failures
 alert.evaluations
 alert.triggered
 alert.delivery.success
