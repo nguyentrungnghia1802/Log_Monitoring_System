@@ -15,18 +15,19 @@ exists but the contract, security boundary, or validation is incomplete.
 | FR-LIVE-001/002/004 — authenticated, filtered, bounded STOMP live tail | `WebSocketConfig`, `LiveTailPublisher`, `LiveTailSubscriptionRegistry`, `StompAuthChannelInterceptor` | `StompAuthChannelInterceptorTest`, `LiveTailSubscriptionRegistryTest`, `LiveTailPublisherTest` | [x] |
 | FR-ALT-001/003/005/006/007/008 — alert rules, cooldown, occurrence, adapters | `AlertRuleController`, `AlertController`, `AlertService`, notification adapters | `AlertServiceTest` | [~] |
 | FR-AUTH-001/002 — JWT and project membership checks | `JwtService`, `ProjectAuthorizationService`, `ProjectSecurityInterceptor`, auth domain | `ProjectAuthorizationServiceTest`, `Phase9SecurityTest` | [x] |
-| FR-AUTH-004/005 — hashed API-key creation and revocation | `ApiKeyService`, `ApiKeyAuthenticationFilter` | `Phase9SecurityTest` | [~] |
+| FR-AUTH-004/005 — hashed API-key creation and revocation | `ApiKeyService`, `ApiKeyController`, `ApiKeyAuthenticationFilter` | `Phase9SecurityTest`, `ApiKeyServiceTest` | [x] |
 | FR-OBS-001/003/004 — health and ingestion status | `SystemStatusController`, queue/worker metrics | `SystemStatusEndpointTest`, queue tests | [x] |
 | Cross-project nested alert isolation | `AlertRuleRepository`, `AlertOccurrenceRepository`, `AlertService` use `(id, projectId)` lookups | `Phase9SecurityTest.doesNotExposeForeignProjectNestedAlertResources` | [x] |
-| Management project/API-key lifecycle | no management controllers found for project or API-key CRUD | no API integration tests found | [ ] |
+| Management project/API-key lifecycle | `ProjectController`, `ApiKeyController`, `ProjectManagementService`, `ApiKeysPage` | `ProjectControllerTest`, `Phase9SecurityTest`, `ApiKeysPage.test.tsx` | [~] |
 
 ## Audit findings
 
 - `202 Accepted` remains memory-queue admission; no durability claim was added.
 - The static `demo-api-key` authentication bypass was removed. Tests now create
   a real random key and validate it through the hash-backed repository path.
-- `docs/project/05_API.md` describes management routes that are not present in
-  the current controller tree; those requirements remain incomplete.
+- The project and API-key management routes are now present in the controller
+  tree; the API-key page has component coverage, but frontend tooling is not
+  runnable in the current workspace because Node/npm is absent from PATH.
 - The starter module now disables executable `bootJar` generation and publishes
   a normal library JAR; this fixes the multi-module assemble failure.
 - Live Tail now authenticates STOMP `CONNECT`, authorizes user destinations against

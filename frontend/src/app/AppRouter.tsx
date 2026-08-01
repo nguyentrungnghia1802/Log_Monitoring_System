@@ -8,6 +8,7 @@ import { AlertRulesPage } from '../pages/alerts/AlertRulesPage'
 import { AlertsPage } from '../pages/alerts/AlertsPage'
 import { OrganizationPage } from '../pages/organization/OrganizationPage'
 import { ProjectsPage } from '../pages/projects/ProjectsPage'
+import { ApiKeysPage } from '../pages/apikeys/ApiKeysPage'
 
 export function AppRouter() {
   return (
@@ -23,6 +24,7 @@ export function AppRouter() {
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/organization" element={<OrganizationPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/api-keys" element={<ApiKeysPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -10,6 +10,7 @@ The current baseline includes the repository foundation plus:
 - frontend skeleton with React, TypeScript, Vite, TanStack Query, Router, and Tailwind CSS;
 - organization/user management and organization-scoped project administration;
 - project settings, retention configuration, activity/service summaries, soft deactivation, and audited management APIs;
+- API-key inventory and safe create/rotate/revoke management with one-time secret display;
 - Docker Compose configuration for local MongoDB;
 - environment and profile configuration;
 - smoke/integration tests and health endpoints.

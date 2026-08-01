@@ -12,6 +12,7 @@ export function Navigation() {
         { label: 'Alert History', path: '/alerts' },
         { label: 'Organization', path: '/organization' },
         { label: 'Projects', path: '/projects' },
+        { label: 'API Keys', path: '/api-keys' },
     ]
 
     return (
