@@ -106,6 +106,18 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 - organization-scoped audit records;
 - frontend loading, empty, error/retry, and destructive-action confirmation states.
 
+### Project management
+
+- project key normalization and organization-local uniqueness;
+- organization-admin project create/update/deactivate authorization;
+- authorized project listing and foreign-organization 404 isolation;
+- retention validation and resolver configuration;
+- service discovery and 24-hour ingestion/error summaries from MongoDB;
+- project mutation audit records;
+- valid API-key ingestion rejection after soft deactivation;
+- frontend project loading, empty, retry, editing, retention, and confirmation
+  states.
+
 ### Queue
 
 - admission succeeds below capacity;

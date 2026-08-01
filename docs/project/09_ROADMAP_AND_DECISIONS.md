@@ -1,6 +1,11 @@
 # Roadmap and Decisions
 
-Last reviewed: 2026-07-30.
+Last reviewed: 2026-08-02.
+
+The C1 organization/user management slice and the C2 project management
+backend/API slice are implemented on the current feature line. C1 still has
+an explicit frontend login/session-bootstrap gap; C3 API-key management UI and
+C4 retention UI remain separate product-administration slices.
 
 ## 1. Delivery roadmap
 

@@ -64,6 +64,29 @@ organization administrators is rejected with `409 FINAL_ORGANIZATION_ADMIN`.
 Every successful settings or membership mutation emits an audit event with a
 safe static summary; passwords and raw credentials are never included.
 
+### Project lifecycle
+
+Projects are organization-owned configuration documents. A project key is
+normalized to a lowercase slug and is unique within its organization. Project
+administration is restricted to an organization administrator; project reads
+are scoped through the current organization and project membership.
+
+```text
+new -> active
+active -> updated
+active -> inactive
+inactive -> visible for authorized administration/read operations
+inactive -> ingestion rejected
+```
+
+Deactivation is a soft state change so project configuration and audit history
+remain available. API-key authentication checks the current project document
+before admission and returns 409 PROJECT_INACTIVE; it does not claim that
+existing queued events are removed. Services are discovered from persisted
+events, while the recent ingestion summary counts events and error levels
+received during the last 24 hours. Retention updates are persisted and used
+for future event expiration calculation.
+
 ---
 
 ## 3. Log event state

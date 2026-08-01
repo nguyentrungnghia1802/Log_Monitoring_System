@@ -1,5 +1,7 @@
 package com.example.logmonitor.project.domain;
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -15,8 +17,41 @@ public class RetentionPolicyResolver {
     public static final long ERROR_RETENTION_SECONDS = 30 * 24 * 3600L;  // 30 days
 
     private final Map<String, Long> customProjectDefaults = new ConcurrentHashMap<>();
+    private final Map<String, Project.RetentionPolicy> customProjectPolicies = new ConcurrentHashMap<>();
+    private final ProjectRepository projectRepository;
+
+    public RetentionPolicyResolver() {
+        this.projectRepository = null;
+    }
+
+    @Autowired
+    public RetentionPolicyResolver(ProjectRepository projectRepository) {
+        this.projectRepository = projectRepository;
+    }
+
+    @PostConstruct
+    void loadPersistedPolicies() {
+        if (projectRepository == null) {
+            return;
+        }
+        projectRepository.findAll().forEach(project -> configureProject(
+            project.getId(),
+            project.getRetention().getDefaultDays(),
+            project.getRetention().getLevelOverrides()
+        ));
+    }
 
     public long resolveRetentionSeconds(String projectId, String level) {
+        Project.RetentionPolicy projectPolicy = customProjectPolicies.get(projectId);
+        if (projectPolicy != null) {
+            String normalizedLevel = level == null ? null : level.trim().toUpperCase();
+            Integer overrideDays = normalizedLevel == null
+                ? null
+                : projectPolicy.getLevelOverrides().get(normalizedLevel);
+            long days = overrideDays == null ? projectPolicy.getDefaultDays() : overrideDays;
+            return days * 24 * 3600L;
+        }
+
         if (level == null) {
             return getProjectDefault(projectId);
         }
@@ -35,6 +70,13 @@ public class RetentionPolicyResolver {
         if (projectId != null && seconds > 0) {
             customProjectDefaults.put(projectId, seconds);
         }
+    }
+
+    public void configureProject(String projectId, int defaultDays, Map<String, Integer> levelOverrides) {
+        if (projectId == null || projectId.isBlank()) {
+            return;
+        }
+        customProjectPolicies.put(projectId, new Project.RetentionPolicy(defaultDays, levelOverrides));
     }
 
     public long getProjectDefault(String projectId) {

@@ -4,10 +4,12 @@ import com.example.logmonitor.apikey.application.ApiKeyService;
 import com.example.logmonitor.apikey.domain.ApiKey;
 import com.example.logmonitor.apikey.config.ApiKeyProperties;
 import com.example.logmonitor.common.RateLimiterService;
+import com.example.logmonitor.project.domain.ProjectRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -23,15 +25,28 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyService apiKeyService;
     private final ApiKeyProperties properties;
     private final RateLimiterService rateLimiterService;
+    private final ProjectRepository projectRepository;
 
+    /** Compatibility constructor retained for focused filter unit tests. */
     public ApiKeyAuthenticationFilter(
         ApiKeyService apiKeyService,
         ApiKeyProperties properties,
         RateLimiterService rateLimiterService
     ) {
+        this(apiKeyService, properties, rateLimiterService, null);
+    }
+
+    @Autowired
+    public ApiKeyAuthenticationFilter(
+        ApiKeyService apiKeyService,
+        ApiKeyProperties properties,
+        RateLimiterService rateLimiterService,
+        ProjectRepository projectRepository
+    ) {
         this.apiKeyService = apiKeyService;
         this.properties = properties;
         this.rateLimiterService = rateLimiterService;
+        this.projectRepository = projectRepository;
     }
 
     @Override
@@ -45,6 +60,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 Optional<ApiKey> validKey = apiKeyService.validateApiKey(apiKeyHeader);
                 if (validKey.isPresent()) {
                     ApiKey key = validKey.get();
+                    if (projectRepository != null
+                        && projectRepository.findById(key.getProjectId()).map(project -> !project.isActive()).orElse(false)) {
+                        writeError(response, HttpServletResponse.SC_CONFLICT,
+                            "PROJECT_INACTIVE", "Project is inactive and cannot accept ingestion");
+                        return;
+                    }
                     String limiterKey = key.getId() != null ? key.getId() : key.getPublicId();
                     int capacity = Math.max(1, properties.getBurstCapacity());
                     int refillRate = Math.max(1, properties.getRequestsPerSecond());

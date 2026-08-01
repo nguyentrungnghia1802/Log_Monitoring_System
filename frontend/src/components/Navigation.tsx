@@ -11,6 +11,7 @@ export function Navigation() {
         { label: 'Alert Rules', path: '/alerts/rules' },
         { label: 'Alert History', path: '/alerts' },
         { label: 'Organization', path: '/organization' },
+        { label: 'Projects', path: '/projects' },
     ]
 
     return (
@@ -46,7 +47,7 @@ export function Navigation() {
                 <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
                         <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Demo Project
+                        Project Management
                     </span>
                 </div>
             </div>

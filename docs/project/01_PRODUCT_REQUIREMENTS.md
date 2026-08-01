@@ -67,6 +67,14 @@ Authorization must always combine the authenticated identity with organization/p
 | FR-PRJ-004 | Project defines allowed environments | Required |
 | FR-PRJ-005 | Project configures default retention and per-level overrides | Required |
 
+Current implementation status (2026-08-02): the project management API and
+React page implement organization-scoped project creation, stable lowercase
+keys, authorized listing/detail, settings and retention updates, soft
+deactivation, activity/service summaries, and safe project audit events.
+Deactivated projects remain visible to authorized management users but valid
+ingestion API keys receive 409 PROJECT_INACTIVE. The API-key lifecycle UI is
+tracked separately in C3.
+
 ### Ingestion
 
 | ID | Requirement | V1 |
