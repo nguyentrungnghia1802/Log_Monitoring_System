@@ -16,13 +16,20 @@ public class IngestionService {
 
     private final IngestionQueue ingestionQueue;
     private final RetentionPolicyResolver retentionPolicyResolver;
+    private final IngestionPayloadSanitizer payloadSanitizer;
 
-    public IngestionService(IngestionQueue ingestionQueue, RetentionPolicyResolver retentionPolicyResolver) {
+    public IngestionService(
+        IngestionQueue ingestionQueue,
+        RetentionPolicyResolver retentionPolicyResolver,
+        IngestionPayloadSanitizer payloadSanitizer
+    ) {
         this.ingestionQueue = ingestionQueue;
         this.retentionPolicyResolver = retentionPolicyResolver;
+        this.payloadSanitizer = payloadSanitizer;
     }
 
     public AdmissionResult accept(IngestionRequest request, String apiKey) {
+        request = payloadSanitizer.sanitize(request);
         String requestId = UUID.randomUUID().toString();
         String projectId = "demo-project";
         String organizationId = "demo-org";
@@ -49,6 +56,7 @@ public class IngestionService {
     }
 
     public AdmissionResult acceptBatch(BatchIngestionRequest request, String apiKey) {
+        request = payloadSanitizer.sanitize(request);
         String requestId = UUID.randomUUID().toString();
         List<LogEvent> events = new ArrayList<>();
         String projectId = "demo-project";

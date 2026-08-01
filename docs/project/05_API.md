@@ -430,18 +430,54 @@ operator/admin enforcement remains planned. May show:
 
 ## 15. Validation limits
 
-All values are configurable but must have server-side caps:
+The ingestion API applies a streaming HTTP body guard before JSON parsing. The
+current defaults are configurable through environment variables, but each value
+has a server-side hard cap:
 
-- max event message length;
-- max stack trace length;
-- max context serialized bytes;
-- max context depth;
-- max tag count;
-- max batch event count;
-- max HTTP request bytes;
+- HTTP body: `1 MiB` (`INGESTION_MAX_HTTP_BODY_BYTES`);
+- batch: `500` events (`INGESTION_BATCH_MAX_SIZE`);
+- message: `4,000` characters (`INGESTION_MAX_MESSAGE_LENGTH`);
+- exception message: `4,000` characters;
+- source stack trace: `16,000` characters (`INGESTION_MAX_STACK_TRACE_LENGTH`);
+- scalar event IDs/service/environment/event type: `256` characters;
+- context serialized size: `32 KiB` and tags serialized size: `16 KiB`;
+- context/tag root keys: `50` each;
+- nested map/collection entries: `100` per node;
+- context nesting depth: `5`;
+- context key length: `100` characters;
+- context string value length: `4,000` characters;
 - max search range;
 - max page size;
 - max WebSocket subscriptions per user/session.
+
+An oversized HTTP body returns `413 PAYLOAD_TOO_LARGE`. A well-formed request
+that violates an ingestion limit or reserved-field rule returns `422
+VALIDATION_ERROR`; malformed JSON returns `400 MALFORMED_REQUEST`. Batch
+validation and redaction complete before any event is offered to the queue, so a
+rejected batch cannot be partially admitted.
+
+### 15.1 Redaction and privacy
+
+Context and tags are copied into a bounded normalized structure before queue
+admission. Keys configured under `security.redaction.fields` are replaced with
+`[REDACTED]` by default, including password, token, API-key, authorization,
+cookie, private-key, and webhook/bot-token names. Credential-like `key=value`
+patterns and bearer tokens in message/exception text are also redacted. The
+redaction replacement and field set are configurable, while core credential
+patterns remain protected when redaction is enabled.
+
+Reserved event fields such as `projectId`, `organizationId`, `apiKeyId`,
+`receivedAt`, and `expireAt` cannot be supplied through context or tags. A
+source application's extra top-level project selector is not an authority; the
+authenticated API key still determines the stored project.
+
+Source applications should avoid sending passwords, access tokens, payment
+data, full request/response bodies, or unnecessary personal data. Use opaque
+trace/request IDs where possible, keep customer/order identifiers to the
+minimum needed for diagnosis, and configure project retention to the shortest
+useful period. Source exception fields are stored as log event data; platform
+operational errors are logged separately without request payloads or credential
+values.
 
 ---
 
@@ -458,6 +494,7 @@ PROJECT_NOT_FOUND
 API_KEY_INVALID
 API_KEY_REVOKED
 RATE_LIMITED
+MALFORMED_REQUEST
 INGESTION_BACKPRESSURE
 DEPENDENCY_UNAVAILABLE
 SEARCH_RANGE_TOO_LARGE

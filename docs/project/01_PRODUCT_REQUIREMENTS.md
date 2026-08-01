@@ -255,6 +255,15 @@ These are development targets, not production guarantees until measured on decla
 
 The monitoring platform may receive user IDs, order IDs, branch IDs, request payload fragments, or stack traces. Source systems are responsible for avoiding unnecessary personal data; the monitoring platform must provide field redaction and retention controls.
 
+Ingestion privacy baseline: source applications must not send passwords,
+access/refresh tokens, API keys, cookies, private keys, payment data, or full
+request/response bodies unless a documented diagnostic need exists. The backend
+enforces bounded request/message/stack-trace/context sizes, redacts configured
+credential fields before queue admission, rejects context keys that shadow
+server-derived event fields, and applies project/level retention. Source
+exception data is part of the event contract; platform operational logs must
+contain only safe diagnostics and no request payload or credential values.
+
 ---
 
 ## 7. Core acceptance criteria

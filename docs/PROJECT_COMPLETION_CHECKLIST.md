@@ -420,24 +420,37 @@ security, cleanup, filtering, and backpressure decisions.
 
 ### Tasks
 
-- [ ] Enforce maximum HTTP body size.
-- [ ] Enforce maximum batch count.
-- [ ] Enforce message length.
-- [ ] Enforce stack-trace length.
-- [ ] Enforce context serialized size.
-- [ ] Enforce context depth.
-- [ ] Enforce context/tag key count and key length.
-- [ ] Prevent context from overriding reserved fields.
-- [ ] Add configurable sensitive-field redaction.
-- [ ] Redact credentials from platform internal logs.
-- [ ] Distinguish source application stack traces from platform stack traces.
-- [ ] Document personal-data expectations for source applications.
-- [ ] Add retention/privacy guidance for IDs, payload fragments, and stack traces.
+- [x] Enforce maximum HTTP body size.
+- [x] Enforce maximum batch count.
+- [x] Enforce message length.
+- [x] Enforce stack-trace length.
+- [x] Enforce context serialized size.
+- [x] Enforce context depth.
+- [x] Enforce context/tag key count and key length.
+- [x] Prevent context from overriding reserved fields.
+- [x] Add configurable sensitive-field redaction.
+- [x] Redact credentials from platform internal logs.
+- [x] Distinguish source application stack traces from platform stack traces.
+- [x] Document personal-data expectations for source applications.
+- [x] Add retention/privacy guidance for IDs, payload fragments, and stack traces.
 
 ### Exit criteria
 
-- [ ] A single request cannot allocate uncontrolled memory through deeply nested or oversized data.
-- [ ] Known credential fields do not appear in internal logs or metrics.
+- [x] A single request cannot allocate uncontrolled memory through deeply nested or oversized data.
+- [x] Known credential fields do not appear in internal logs or metrics.
+
+Evidence (2026-08-02): `PayloadLimitFilter` rejects oversized fixed-length and
+chunked ingestion bodies with `413`; `IngestionPayloadSanitizer` enforces the
+batch, scalar, exception, context, tag, collection, key, depth, and serialized
+size bounds before queue admission. `SensitiveDataRedactor` applies configurable
+credential-key and text-pattern redaction before events reach the queue, Live
+Tail, or MongoDB; persistence, worker, and Telegram diagnostics log only safe
+exception type/message fields. Validation counters are bounded aggregate metrics
+and do not contain request values. `SensitiveDataRedactorTest`,
+`IngestionPayloadSanitizerTest`, `PayloadLimitFilterTest`,
+`IngestionControllerTest`, and `BatchIngestionControllerTest` cover the
+behavior. The existing `202` admission contract, bounded in-memory queue,
+worker batch persistence, and documented pre-MongoDB loss window are unchanged.
 
 ---
 
@@ -1366,8 +1379,8 @@ Because the default queue is process memory:
 - [ ] raw keys shown once;
 - [ ] revoked keys rejected;
 - [x] WebSocket subscriptions authorized;
-- [ ] input limits enforced;
-- [ ] sensitive fields redacted;
+- [x] input limits enforced;
+- [x] sensitive fields redacted;
 - [ ] HTTPS enabled;
 - [ ] MongoDB not public;
 - [ ] metrics protected;

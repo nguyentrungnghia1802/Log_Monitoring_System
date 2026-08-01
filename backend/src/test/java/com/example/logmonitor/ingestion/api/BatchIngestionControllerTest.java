@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.stream.IntStream;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,5 +63,20 @@ class BatchIngestionControllerTest {
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.accepted").value(true))
             .andExpect(jsonPath("$.acceptedCount").value(2));
+    }
+
+    @Test
+    void rejectsBatchThatExceedsTheConfiguredEventCount() throws Exception {
+        String events = IntStream.range(0, 501)
+            .mapToObj(index -> "{\"level\":\"INFO\",\"service\":\"batch-service\",\"environment\":\"test\",\"eventType\":\"BATCH\",\"message\":\"event-" + index + "\"}")
+            .collect(java.util.stream.Collectors.joining(","));
+
+        mockMvc.perform(post("/api/v1/ingest/logs/batch")
+                .header("X-API-Key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"events\":[" + events + "]}"))
+            .andExpect(status().isUnprocessableEntity())
+            .andExpect(jsonPath("$.accepted").value(false))
+            .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
     }
 }

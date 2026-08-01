@@ -54,11 +54,30 @@ INGESTION_WORKER_COUNT
 INGESTION_BATCH_MAX_SIZE
 INGESTION_BATCH_MAX_WAIT_MS
 INGESTION_ENQUEUE_TIMEOUT_MS
+INGESTION_MAX_HTTP_BODY_BYTES
+INGESTION_MAX_MESSAGE_LENGTH
+INGESTION_MAX_STACK_TRACE_LENGTH
+INGESTION_MAX_CONTEXT_BYTES
+INGESTION_MAX_CONTEXT_KEYS
+INGESTION_MAX_CONTEXT_DEPTH
+LOG_REDACTION_ENABLED
+LOG_REDACTION_REPLACEMENT
 SEARCH_MAX_RANGE_DAYS
 SEARCH_MAX_PAGE_SIZE
 ```
 
 API keys issued to monitored applications are application credentials and must be managed like secrets.
+
+### Ingestion privacy operations
+
+Keep request-body limits and redaction enabled in every environment. Review the
+configured `security.redaction.fields` list when a source application introduces
+a new credential or personal-data field. Do not disable redaction to debug a
+production incident; reproduce with synthetic values or inspect a restricted
+source-side sample instead. Monitor `ingestion.rejected.validation` and
+`ingestion.rejected.payload_too_large` as count-only signals. Project retention
+must be shorter than the approved diagnostic need, and raw log access remains
+project-scoped.
 
 ---
 

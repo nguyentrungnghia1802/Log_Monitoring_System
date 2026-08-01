@@ -1,6 +1,7 @@
 package com.example.logmonitor.persistence;
 
 import com.example.logmonitor.ingestion.domain.LogEvent;
+import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.livetail.application.LiveTailPublisher;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -26,10 +27,17 @@ public class LogEventPersistenceService {
     private final Timer persistenceTimer;
     private final Counter persistedEventsCounter;
     private final Counter persistenceFailedCounter;
+    private final SensitiveDataRedactor redactor;
 
-    public LogEventPersistenceService(MongoTemplate mongoTemplate, LiveTailPublisher liveTailPublisher, MeterRegistry registry) {
+    public LogEventPersistenceService(
+        MongoTemplate mongoTemplate,
+        LiveTailPublisher liveTailPublisher,
+        MeterRegistry registry,
+        SensitiveDataRedactor redactor
+    ) {
         this.mongoTemplate = mongoTemplate;
         this.liveTailPublisher = liveTailPublisher;
+        this.redactor = redactor;
         this.persistenceTimer = Timer.builder("ingestion.persistence.latency")
             .description("Time taken to bulk write log events to MongoDB")
             .register(registry);
@@ -63,10 +71,21 @@ public class LogEventPersistenceService {
                     return;
                 } catch (Exception ex) {
                     attempt++;
-                    log.warn("Mongo bulk insert attempt {}/{} failed: {}", attempt, MAX_RETRIES, ex.getMessage());
+                    log.warn(
+                        "Mongo bulk insert attempt {}/{} failed: type={} message={}",
+                        attempt,
+                        MAX_RETRIES,
+                        ex.getClass().getSimpleName(),
+                        redactor.redactText(ex.getMessage())
+                    );
                     if (attempt >= MAX_RETRIES) {
                         persistenceFailedCounter.increment(documents.size());
-                        log.error("Exhausted retries persisting batch of {} events", documents.size(), ex);
+                        log.error(
+                            "Exhausted retries persisting batch of {} events: type={} message={}",
+                            documents.size(),
+                            ex.getClass().getSimpleName(),
+                            redactor.redactText(ex.getMessage())
+                        );
                         throw ex;
                     }
                     try {

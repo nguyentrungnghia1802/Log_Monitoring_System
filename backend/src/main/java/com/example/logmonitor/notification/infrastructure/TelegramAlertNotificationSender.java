@@ -1,5 +1,6 @@
 package com.example.logmonitor.notification.infrastructure;
 
+import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.notification.domain.AlertNotification;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import org.slf4j.Logger;
@@ -23,14 +24,17 @@ public class TelegramAlertNotificationSender implements AlertNotificationSender 
     private final String botToken;
     private final String chatId;
     private final RestTemplate restTemplate;
+    private final SensitiveDataRedactor redactor;
 
     public TelegramAlertNotificationSender(
         @Value("${telegram.bot.token:}") String botToken,
-        @Value("${telegram.chat.id:}") String chatId
+        @Value("${telegram.chat.id:}") String chatId,
+        SensitiveDataRedactor redactor
     ) {
         this.botToken = botToken;
         this.chatId = chatId;
         this.restTemplate = new RestTemplate();
+        this.redactor = redactor;
     }
 
     @Override
@@ -75,8 +79,13 @@ public class TelegramAlertNotificationSender implements AlertNotificationSender 
             log.info("Telegram notification successfully sent for alert: {}", notification.alertId());
             return new NotificationResult(true, "telegram", null);
         } catch (Exception ex) {
-            log.error("Failed to send Telegram alert notification", ex);
-            return new NotificationResult(false, "telegram", ex.getMessage());
+            String safeMessage = redactor.redactText(ex.getMessage());
+            log.error(
+                "Failed to send Telegram alert notification: type={} message={}",
+                ex.getClass().getSimpleName(),
+                safeMessage
+            );
+            return new NotificationResult(false, "telegram", safeMessage);
         }
     }
 

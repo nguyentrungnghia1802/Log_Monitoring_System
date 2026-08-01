@@ -287,7 +287,7 @@ V1 can begin with in-process evaluation. Horizontal scaling requires a later own
 API key format:
 
 ```text
-lm_<public-id>_<secret>
+lm_live_<public-id>_<secret>
 ```
 
 Storage:
@@ -296,6 +296,25 @@ Storage:
 - secret portion hashed with a password/key derivation strategy appropriate for random high-entropy secrets;
 - raw key returned only at creation/rotation;
 - revocation checked before admission.
+
+The ingestion request path is deliberately bounded before queue admission:
+
+```text
+HTTP body guard
+    -> API-key authentication
+        -> DTO/schema validation
+            -> context/tag depth, key, and serialized-size validation
+                -> sensitive-field redaction
+                    -> LogEvent normalization
+                        -> bounded queue offer
+```
+
+The body guard limits both declared `Content-Length` and streamed/chunked
+requests. Redaction occurs before the event can reach the queue, Live Tail, or
+MongoDB. Validation rejects reserved context fields rather than allowing them
+to shadow server-derived fields. Source exception text is part of the event
+contract; platform operational logs contain only safe exception type/message
+diagnostics and never request payloads or credentials.
 
 ### Sensitive logging policy
 
@@ -308,6 +327,12 @@ The monitoring platform must redact at minimum:
 - access/refresh tokens;
 - known private keys/secrets;
 - configurable context fields.
+
+The configured baseline is enabled by default and is controlled by
+`LOG_REDACTION_ENABLED`, `LOG_REDACTION_REPLACEMENT`, and the
+`security.redaction.fields` configuration. Metrics for validation, oversized
+payloads, and queue admission contain counts only; they do not include event
+IDs, messages, context values, API keys, or tokens.
 
 ---
 

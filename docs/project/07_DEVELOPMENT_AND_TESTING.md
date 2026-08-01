@@ -90,7 +90,8 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 
 - valid level normalization;
 - missing required field rejected;
-- oversized message/context rejected;
+- oversized HTTP body, message, exception, batch, and nested context rejected;
+- credential fields and credential-shaped text are redacted before admission;
 - server cannot be given tenant/project authority through payload;
 - `expireAt` computed from retention;
 - API key revoked path.
