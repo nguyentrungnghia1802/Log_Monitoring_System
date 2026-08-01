@@ -89,6 +89,18 @@ operators must not request or log temporary passwords. Removing a user also
 clears project memberships and disables the user record, while retaining the
 non-sensitive identity row for audit/history purposes.
 
+### Project administration operations
+
+Create projects through POST /api/v1/projects as an organization
+administrator. Keep the lowercase project key stable because API clients and
+future dashboard links use it as a machine-readable identifier. Before
+deactivation, confirm the source application has a replacement project/key;
+deactivation is soft and preserves configuration, logs, and audit history.
+After deactivation, the API-key filter rejects ingestion with
+PROJECT_INACTIVE. Existing events already admitted to the bounded V1 queue
+are not retroactively removed, and retention changes affect future expireAt
+calculation rather than rewriting existing events.
+
 ---
 
 ## 4. Health model

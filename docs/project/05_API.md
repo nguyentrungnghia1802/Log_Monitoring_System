@@ -13,9 +13,9 @@
 
 Current implementation note (2026-08-02): management routes are being delivered
 incrementally. Logs, analytics, alert rules, alert occurrences, API-key lifecycle,
-and the current-organization/user-management route family have controllers and
-tests. Project CRUD routes listed below remain planned until their controllers and
-tests exist.
+the current-organization/user-management route family, and project management
+now have controllers and tests. API-key management UI and the dedicated
+retention UI remain planned in C3/C4.
 
 ---
 
@@ -153,6 +153,22 @@ Project response includes:
 - environments;
 - retention policy;
 - recent ingestion summary.
+
+The implemented project response also includes id, organizationId, bounded
+string settings, discovered services, recentIngestion.eventsLast24Hours,
+recentIngestion.errorEventsLast24Hours, and recentIngestion.lastReceivedAt.
+The service list is discovered from persisted events for the project; the
+counts are limited to the previous 24 hours.
+
+POST accepts key, name, environments, optional retention, and optional bounded
+settings. The key is normalized to a lowercase slug and is immutable after
+creation. PATCH updates name, environments, and settings. PUT /retention
+replaces the default days and supported level overrides. DELETE performs a
+soft deactivation and is idempotent. All project mutation responses are
+audited with static summaries that contain no credentials.
+Invalid input returns 422, duplicate keys return 409 PROJECT_KEY_EXISTS, and
+a project outside the current organization returns 404 PROJECT_NOT_FOUND.
+Valid ingestion keys for a deactivated project return 409 PROJECT_INACTIVE.
 
 ---
 

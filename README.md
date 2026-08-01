@@ -4,10 +4,12 @@ This repository contains the initial foundation for a centralized log monitoring
 
 ## Overview
 
-Phase 0 focuses on repository and project foundation:
+The current baseline includes the repository foundation plus:
 
 - backend skeleton with Spring Boot, security, validation, Actuator, WebSocket, and MongoDB support;
 - frontend skeleton with React, TypeScript, Vite, TanStack Query, Router, and Tailwind CSS;
+- organization/user management and organization-scoped project administration;
+- project settings, retention configuration, activity/service summaries, soft deactivation, and audited management APIs;
 - Docker Compose configuration for local MongoDB;
 - environment and profile configuration;
 - smoke/integration tests and health endpoints.
@@ -58,8 +60,13 @@ Backend:
 
 ```bash
 cd backend
-./gradlew test
+./gradlew test -x :sdk:log-monitoring-java-sdk:test
 ```
+
+On the current Windows development workspace, the SDK test task can be
+blocked by a persistent lock on its generated test-results output file; the
+application test suite is run with that one task excluded until the lock is
+resolved without deleting the file.
 
 Frontend:
 

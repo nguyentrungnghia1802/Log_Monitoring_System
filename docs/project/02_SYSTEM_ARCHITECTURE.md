@@ -85,6 +85,14 @@ integration adapter -> external notification provider
 
 Controllers must not own domain policies. Repositories must not authorize HTTP users.
 
+The project feature keeps project CRUD/retention orchestration in
+ProjectManagementService, Mongo mappings in ProjectRepository, and recent
+log activity/service discovery in ProjectActivityRepository. The controller
+uses the organization authorization boundary for project administration and
+the centralized project authorization service for project-scoped reads.
+Deactivation is a configuration state change; the API-key authentication
+filter checks the project state before admitting ingestion.
+
 ---
 
 ## 4. Ingestion thread model

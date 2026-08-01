@@ -267,7 +267,7 @@ At minimum, define and enforce capabilities equivalent to:
 - [x] Verify project access is derived from membership.
 - [x] Centralize authorization checks.
 - [~] Ensure request-body `organizationId`, `projectId`, or role never grants authority.
-- [ ] Restrict project creation/update/deactivation to allowed roles.
+- [x] Restrict project creation/update/deactivation to allowed roles.
 - [ ] Restrict API-key creation/rotation/revocation.
 - [ ] Restrict retention changes.
 - [x] Restrict alert-rule mutation.
@@ -285,7 +285,7 @@ At minimum, define and enforce capabilities equivalent to:
 - [ ] foreign-project API keys;
 - [x] foreign-project live-tail subscription;
 - [x] viewer mutation rejection;
-- [ ] operator organization-management rejection.
+- [x] operator organization-management rejection.
 
 ### Exit criteria
 
@@ -299,8 +299,10 @@ occurrence repository lookups now use `(id, projectId)`, preventing nested-ID
 cross-project disclosure. `Phase9SecurityTest` covers foreign log search/detail,
 analytics, alert rule/occurrence detail, unauthenticated access, and system
 status protection; `ProjectAuthorizationServiceTest` covers role and stale
-organization decisions. Organization/project management controllers remain
-incomplete; API-key management controllers and cross-project tests are covered
+organization decisions. C1 organization management and C2 project management
+controllers now enforce organization-admin mutation boundaries; the C2
+controller test covers operator rejection and foreign-organization project
+isolation. API-key management controllers and cross-project tests are covered
 by the B3 evidence below. WebSocket authorization is covered by the B4
 interceptor/registry/publisher tests below.
 Validation: backend `./gradlew :test --no-parallel` passed all 20 tests,
@@ -499,22 +501,44 @@ tests, and production build passed.
 
 ### Tasks
 
-- [ ] create project;
-- [ ] stable unique project key/slug;
-- [ ] list authorized projects;
-- [ ] project detail;
-- [ ] update name/environments/settings;
-- [ ] soft deactivate project;
-- [ ] prevent ingestion into inactive project;
-- [ ] retention configuration;
-- [ ] service discovery summary;
-- [ ] recent ingestion summary;
-- [ ] project-management frontend;
-- [ ] audit project changes.
+- [x] create project;
+- [x] stable unique project key/slug;
+- [x] list authorized projects;
+- [x] project detail;
+- [x] update name/environments/settings;
+- [x] soft deactivate project;
+- [x] prevent ingestion into inactive project;
+- [x] retention configuration;
+- [x] service discovery summary;
+- [x] recent ingestion summary;
+- [~] project-management frontend;
+- [x] audit project changes.
 
 ### Exit criteria
 
-- [ ] A new monitored application can be onboarded entirely through supported APIs/UI.
+- [~] A new monitored application can be onboarded through project APIs/UI;
+  API-key UI and frontend toolchain validation remain in C3/CI.
+
+Evidence (2026-08-02): Project, ProjectRepository,
+ProjectManagementService, ProjectController, and
+ProjectActivityRepository implement organization-scoped project creation,
+stable key validation, authorized listing/detail, settings and retention
+updates, soft deactivation, service discovery, and 24-hour activity summaries.
+ApiKeyAuthenticationFilter rejects keys for an inactive project with
+409 PROJECT_INACTIVE. Project mutations write safe PROJECT or
+PROJECT_RETENTION audit events. ProjectManagementServiceTest and
+ProjectControllerTest cover validation, role boundaries, foreign-organization
+isolation, Mongo activity summaries, audit records, and inactive ingestion.
+The ProjectsPage/projectApi.ts implementation includes loading, empty,
+error/retry, edit, retention, and deactivation-confirmation states, but
+npm run lint, npm run typecheck, npm run test, and npm run build could not be
+rerun in this environment because Node/npm is not available on PATH.
+Backend targeted validation passed with:
+backend/gradlew.bat test --tests
+com.example.logmonitor.project.application.ProjectManagementServiceTest
+--tests com.example.logmonitor.project.api.ProjectControllerTest --tests
+com.example.logmonitor.auth.config.ApiKeyAuthenticationFilterTest -x
+:sdk:log-monitoring-java-sdk:test --rerun-tasks.
 
 ---
 

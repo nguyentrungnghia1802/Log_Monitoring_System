@@ -140,11 +140,21 @@ Rules:
       "ERROR": 30
     }
   },
+  "settings": {
+    "owner": "platform"
+  },
 
   "createdAt": "ISODate",
   "updatedAt": "ISODate"
 }
 ```
+
+The current projects mapping uses a compound unique index on
+(organizationId, key). active is a soft-deactivation flag; the project
+document is retained for management reads and audit history. settings is a
+bounded string map. The application validates retention days from 1 through
+3650 and normalizes supported level overrides to DEBUG, INFO, WARN, ERROR, or
+FATAL.
 
 ---
 
