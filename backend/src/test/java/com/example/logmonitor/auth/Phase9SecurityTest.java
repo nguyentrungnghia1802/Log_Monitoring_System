@@ -13,6 +13,8 @@ import com.example.logmonitor.auth.domain.Role;
 import com.example.logmonitor.auth.domain.User;
 import com.example.logmonitor.auth.domain.UserRepository;
 import com.example.logmonitor.persistence.LogEventDocument;
+import com.example.logmonitor.project.domain.Project;
+import com.example.logmonitor.project.domain.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +60,9 @@ class Phase9SecurityTest {
     private ApiKeyRepository apiKeyRepository;
 
     @Autowired
+    private ProjectRepository projectRepository;
+
+    @Autowired
     private AlertRuleRepository alertRuleRepository;
 
     @Autowired
@@ -80,6 +85,7 @@ class Phase9SecurityTest {
         userRepository.deleteAll();
         membershipRepository.deleteAll();
         apiKeyRepository.deleteAll();
+        projectRepository.deleteAll();
         alertRuleRepository.deleteAll();
         alertOccurrenceRepository.deleteAll();
 
@@ -96,6 +102,8 @@ class Phase9SecurityTest {
         User admin = userRepository.save(new User(null, "admin_user", "admin@example.com", "hash", "org1"));
         membershipRepository.save(new ProjectMembership(admin.getId(), "project-a", Role.ORGANIZATION_ADMIN));
         adminToken = jwtService.generateToken(admin.getId(), "admin_user", "org1");
+
+        projectRepository.save(new Project("project-a", "org1", "project-a", "Project A"));
     }
 
     @Test
@@ -299,5 +307,19 @@ class Phase9SecurityTest {
         mockMvc.perform(get("/api/v1/projects/foreign-project/api-keys")
                 .header("Authorization", "Bearer " + adminToken))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void globalOrganizationAdminCannotManageApiKeysForAnotherOrganization() throws Exception {
+        User globalAdmin = new User(null, "global_admin_user", "global-admin@example.com", "hash", "org1");
+        globalAdmin.setOrganizationRole(Role.ORGANIZATION_ADMIN);
+        globalAdmin = userRepository.save(globalAdmin);
+        String globalAdminToken = jwtService.generateToken(globalAdmin.getId(), "global_admin_user", "org1");
+        projectRepository.save(new Project("foreign-project", "org2", "foreign-project", "Foreign Project"));
+
+        mockMvc.perform(get("/api/v1/projects/foreign-project/api-keys")
+                .header("Authorization", "Bearer " + globalAdminToken))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("PROJECT_NOT_FOUND"));
     }
 }

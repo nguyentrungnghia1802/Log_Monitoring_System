@@ -14,8 +14,8 @@
 Current implementation note (2026-08-02): management routes are being delivered
 incrementally. Logs, analytics, alert rules, alert occurrences, API-key lifecycle,
 the current-organization/user-management route family, and project management
-now have controllers and tests. API-key management UI and the dedicated
-retention UI remain planned in C3/C4.
+now have controllers and tests. The API-key management UI is available at
+`/api-keys`; the dedicated retention UI remains planned in C4.
 
 ---
 
@@ -187,6 +187,14 @@ API-key management requires an authenticated `ORGANIZATION_ADMIN` membership for
 the selected project. List responses expose metadata only: `id`, `projectId`,
 `name`, stable `publicId`, `secretLast4`, lifecycle status, and timestamps. They
 never expose the raw key or its password hash.
+
+The controller resolves the selected project by both its document id and the
+principal's current organization before allowing list, create, rotate, or
+revoke. A global organization admin therefore cannot use a valid token to
+manage a project document from another organization; the API returns
+`PROJECT_NOT_FOUND` for that out-of-scope selector. The UI keeps the raw value
+only in transient component state for the one-time screen and copy action; it
+does not write the value to browser storage or the metadata query cache.
 
 The raw format is `lm_live_<publicId>_<secret>`. The public id is a lookup
 selector, while the secret is generated from 32 random bytes and stored only as

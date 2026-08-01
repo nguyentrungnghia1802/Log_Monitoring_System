@@ -2,10 +2,11 @@
 
 Last reviewed: 2026-08-02.
 
-The C1 organization/user management slice and the C2 project management
-backend/API slice are implemented on the current feature line. C1 still has
-an explicit frontend login/session-bootstrap gap; C3 API-key management UI and
-C4 retention UI remain separate product-administration slices.
+The C1 organization/user management slice, C2 project management slice, and C3
+API-key management UI are implemented on the current feature line. C1 still
+has an explicit frontend login/session-bootstrap gap; C3 frontend toolchain
+validation is pending in this Windows workspace, and C4 retention UI remains
+the next product-administration slice.
 
 ## 1. Delivery roadmap
 

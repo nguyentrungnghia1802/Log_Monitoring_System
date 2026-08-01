@@ -8,6 +8,7 @@ import com.example.logmonitor.auth.application.ProjectAuthorizationService;
 import com.example.logmonitor.auth.application.ProjectAuthorizationService.AuthorizationDecision;
 import com.example.logmonitor.auth.application.ProjectAuthorizationService.Failure;
 import com.example.logmonitor.auth.application.ProjectAuthorizationService.Permission;
+import com.example.logmonitor.project.domain.ProjectRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -33,13 +34,16 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ProjectAuthorizationService authorizationService;
+    private final ProjectRepository projectRepository;
 
     public ApiKeyController(
         ApiKeyService apiKeyService,
-        ProjectAuthorizationService authorizationService
+        ProjectAuthorizationService authorizationService,
+        ProjectRepository projectRepository
     ) {
         this.apiKeyService = apiKeyService;
         this.authorizationService = authorizationService;
+        this.projectRepository = projectRepository;
     }
 
     public record CreateApiKeyRequest(
@@ -182,6 +186,20 @@ public class ApiKeyController {
             Permission.MANAGE_API_KEYS
         );
         if (decision.allowed()) {
+            JwtService.UserPrincipal principal = currentPrincipal();
+            if (principal == null) {
+                return unauthorized();
+            }
+            // Authorization grants an actor a capability; the project document
+            // still has to prove that the selected resource belongs to the
+            // actor's current organization. This closes the global-admin path
+            // where a valid JWT could otherwise manage an arbitrary project id.
+            if (projectRepository.findByIdAndOrganizationId(projectId, principal.organizationId()).isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "code", "PROJECT_NOT_FOUND",
+                    "message", "Project does not exist in the current organization"
+                ));
+            }
             return null;
         }
         if (decision.failure() == Failure.UNAUTHENTICATED) {

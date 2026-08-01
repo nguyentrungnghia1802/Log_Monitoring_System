@@ -118,6 +118,18 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 - frontend project loading, empty, retry, editing, retention, and confirmation
   states.
 
+### API-key management UI
+
+- project-scoped API-key metadata list never renders the raw secret;
+- create and rotate return a one-time secret screen with warning and copy
+  confirmation;
+- dismissing the one-time screen clears transient secret state and does not
+  write the raw value to `localStorage`;
+- rotate and revoke require explicit destructive-action confirmation;
+- revoked status and last-used timestamp remain visible in the inventory;
+- backend API-key management rejects a project document outside the principal's
+  current organization.
+
 ### Queue
 
 - admission succeeds below capacity;

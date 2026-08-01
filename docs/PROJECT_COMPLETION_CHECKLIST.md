@@ -268,7 +268,7 @@ At minimum, define and enforce capabilities equivalent to:
 - [x] Centralize authorization checks.
 - [~] Ensure request-body `organizationId`, `projectId`, or role never grants authority.
 - [x] Restrict project creation/update/deactivation to allowed roles.
-- [ ] Restrict API-key creation/rotation/revocation.
+- [x] Restrict API-key creation/rotation/revocation.
 - [ ] Restrict retention changes.
 - [x] Restrict alert-rule mutation.
 - [x] Restrict acknowledgement and notification retry.
@@ -282,7 +282,7 @@ At minimum, define and enforce capabilities equivalent to:
 - [x] foreign-project analytics;
 - [x] foreign-project alert rules;
 - [x] foreign-project alerts;
-- [ ] foreign-project API keys;
+- [x] foreign-project API keys;
 - [x] foreign-project live-tail subscription;
 - [x] viewer mutation rejection;
 - [x] operator organization-management rejection.
@@ -339,6 +339,7 @@ frontend lint, typecheck, test, and build passed with existing warnings only.
 - [x] rotated old key;
 - [x] foreign project supplied in payload is ignored as an authority;
 - [x] list API never contains secret.
+- [x] management rejects a project document outside the principal's organization.
 
 ### Exit criteria
 
@@ -359,9 +360,10 @@ Tests: `ApiKeyServiceTest` covers high entropy/hash-only storage, valid/malforme
 unknown/incorrect/revoked keys, last-used throttling, rotation, and foreign-scope
 revoke; `ApiKeyAuthenticationFilterTest` covers the 429 per-key burst boundary;
 `Phase9SecurityTest` covers admin CRUD, metadata-only list, old-key invalidation,
-foreign project authorization, and a payload project selector that cannot change
-the key scope. Full backend `test` passed 52/52 tests with no failures, and
-backend `build` passed with the pre-existing locked SDK test task excluded.
+foreign project authorization, organization-document scope, and a payload
+project selector that cannot change the key scope. The full backend application
+`test` now passed 77/77 tests in 24 suites with no failures, and backend `build`
+passed with the pre-existing locked SDK test task excluded.
 
 ---
 
@@ -546,19 +548,32 @@ com.example.logmonitor.auth.config.ApiKeyAuthenticationFilterTest -x
 
 ### Tasks
 
-- [ ] list key metadata;
-- [ ] create key;
-- [ ] one-time secret display;
-- [ ] copy confirmation and warning;
-- [ ] rotate key;
-- [ ] revoke key;
-- [ ] show last-used timestamp and status;
-- [ ] never retain raw key in browser storage;
-- [ ] confirmation for destructive actions.
+- [~] list key metadata;
+- [~] create key;
+- [~] one-time secret display;
+- [~] copy confirmation and warning;
+- [~] rotate key;
+- [~] revoke key;
+- [~] show last-used timestamp and status;
+- [~] never retain raw key in browser storage;
+- [~] confirmation for destructive actions.
 
 ### Exit criteria
 
-- [ ] Project admins can complete a safe API-key lifecycle without database access.
+- [~] Project admins can complete a safe API-key lifecycle without database access.
+
+Evidence (2026-08-02): `frontend/src/pages/apikeys/ApiKeysPage.tsx` and
+`apiKeyApi.ts` implement project selection, metadata-only inventory, create,
+one-time secret warning/copy/dismiss flow, rotate, revoke, status, last-used
+display, retry states, and destructive-action confirmations. Raw secrets are
+held only in transient component state; they are not placed in `localStorage`
+or the metadata query cache. `ApiKeysPage.test.tsx` covers metadata leakage,
+one-time display/copy/dismiss, browser-storage safety, and confirmation gates.
+The backend Phase9 security suite passed 12/12 tests after adding the
+organization-document boundary check. The full backend application test passed
+77/77 tests in 24 suites. Frontend lint/typecheck/Vitest/build remain
+unvalidated because Node.js and npm are not available on PATH in this workspace,
+so C3 is intentionally marked partial rather than complete.
 
 ---
 
