@@ -28,7 +28,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        if (SecurityContextHolder.getContext().getAuthentication() == null
+            && authHeader != null
+            && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             jwtService.validateAndExtractPrincipal(token).ifPresent(principal -> {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

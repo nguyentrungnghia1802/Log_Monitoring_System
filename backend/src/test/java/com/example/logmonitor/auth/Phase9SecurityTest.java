@@ -21,12 +21,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @SpringBootTest
 @org.springframework.test.context.ActiveProfiles("test")
@@ -60,8 +66,12 @@ class Phase9SecurityTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private String userToken;
     private String viewerToken;
+    private String adminToken;
     private String userId;
     private String viewerId;
 
@@ -82,6 +92,10 @@ class Phase9SecurityTest {
         viewerId = viewer.getId();
         membershipRepository.save(new ProjectMembership(viewerId, "project-a", Role.VIEWER));
         viewerToken = jwtService.generateToken(viewerId, "viewer_user", "org1");
+
+        User admin = userRepository.save(new User(null, "admin_user", "admin@example.com", "hash", "org1"));
+        membershipRepository.save(new ProjectMembership(admin.getId(), "project-a", Role.ORGANIZATION_ADMIN));
+        adminToken = jwtService.generateToken(admin.getId(), "admin_user", "org1");
     }
 
     @Test
@@ -203,5 +217,87 @@ class Phase9SecurityTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void organizationAdminCanCreateListRotateAndRevokeWithoutSecretLeakage() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/v1/projects/project-a/api-keys")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"production source\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.rawApiKey").isString())
+            .andExpect(jsonPath("$.hashedSecret").doesNotExist())
+            .andExpect(jsonPath("$.secretLast4").isString())
+            .andReturn();
+
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String oldRawKey = created.get("rawApiKey").asText();
+        String oldKeyId = created.get("id").asText();
+
+        mockMvc.perform(get("/api/v1/projects/project-a/api-keys")
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].rawApiKey").doesNotExist())
+            .andExpect(jsonPath("$[0].hashedSecret").doesNotExist())
+            .andExpect(jsonPath("$[0].publicId").isString());
+
+        MvcResult rotateResult = mockMvc.perform(post("/api/v1/projects/project-a/api-keys/" + oldKeyId + "/rotate")
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rawApiKey").isString())
+            .andExpect(jsonPath("$.hashedSecret").doesNotExist())
+            .andReturn();
+        JsonNode rotated = objectMapper.readTree(rotateResult.getResponse().getContentAsString());
+        String newRawKey = rotated.get("rawApiKey").asText();
+        String newKeyId = rotated.get("id").asText();
+        assertNotEquals(oldRawKey, newRawKey);
+
+        String payload = """
+            {
+                "projectId": "foreign-project",
+                "level": "INFO",
+                "service": "api-key-test",
+                "environment": "production",
+                "eventType": "ROTATION_CHECK",
+                "message": "project comes from key scope"
+            }
+            """;
+        mockMvc.perform(post("/api/v1/ingest/logs")
+                .header("X-API-Key", oldRawKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/ingest/logs")
+                .header("X-API-Key", newRawKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+            .andExpect(status().isAccepted());
+
+        mockMvc.perform(delete("/api/v1/projects/project-a/api-keys/" + newKeyId)
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/ingest/logs")
+                .header("X-API-Key", newRawKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void onlyOrganizationAdminCanManageApiKeys() throws Exception {
+        mockMvc.perform(get("/api/v1/projects/project-a/api-keys")
+                .header("Authorization", "Bearer " + userToken))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/projects/project-a/api-keys")
+                .header("Authorization", "Bearer " + viewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"should fail\"}"))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/projects/foreign-project/api-keys")
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isForbidden());
     }
 }

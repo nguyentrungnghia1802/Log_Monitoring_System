@@ -128,7 +128,7 @@ Rules:
   "projectId": "ObjectId",
   "name": "production-api",
   "publicId": "ak_01...",
-  "secretHash": "...",
+  "hashedSecret": "...",
   "secretLast4": "9X2A",
   "status": "active",
   "createdBy": "ObjectId",
@@ -138,7 +138,14 @@ Rules:
 }
 ```
 
-Never store the raw key after creation.
+Never store the raw key after creation. `publicId` is an indexed stable lookup
+identifier and is not a credential. `hashedSecret` is a BCrypt password hash;
+the application never serializes it through the API. `status` is derived from
+the active/revoked state, and `revokedAt` is populated during revoke/rotation.
+The current implementation also retains `keyPrefix` as a compatibility field
+for records created by the initial schema; new records set it equal to
+`publicId`. `lastUsedAt` is deliberately throttled so ingestion does not issue
+a Mongo write for every accepted event.
 
 ---
 

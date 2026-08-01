@@ -32,6 +32,9 @@ public class IngestionService {
         if (auth != null && auth.getPrincipal() instanceof com.example.logmonitor.auth.config.ApiKeyAuthenticationFilter.ApiKeyPrincipal keyPrincipal) {
             projectId = keyPrincipal.projectId();
             apiKeyId = keyPrincipal.apiKeyId();
+            if (keyPrincipal.organizationId() != null && !keyPrincipal.organizationId().isBlank()) {
+                organizationId = keyPrincipal.organizationId();
+            }
         }
 
         long retentionSeconds = retentionPolicyResolver.resolveRetentionSeconds(projectId, request.level());
@@ -56,6 +59,9 @@ public class IngestionService {
         if (auth != null && auth.getPrincipal() instanceof com.example.logmonitor.auth.config.ApiKeyAuthenticationFilter.ApiKeyPrincipal keyPrincipal) {
             projectId = keyPrincipal.projectId();
             apiKeyId = keyPrincipal.apiKeyId();
+            if (keyPrincipal.organizationId() != null && !keyPrincipal.organizationId().isBlank()) {
+                organizationId = keyPrincipal.organizationId();
+            }
         }
 
         for (IngestionRequest item : request.events()) {

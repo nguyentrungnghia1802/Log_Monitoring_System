@@ -64,6 +64,20 @@ class ProjectAuthorizationServiceTest {
     }
 
     @Test
+    void restrictsApiKeyManagementToOrganizationAdmins() {
+        JwtService.UserPrincipal principal = new JwtService.UserPrincipal("admin-1", "admin", "org-1");
+        User user = new User("admin-1", "admin", "admin@example.com", "hash", "org-1");
+        when(userRepository.findById("admin-1")).thenReturn(Optional.of(user));
+        when(membershipRepository.findByUserIdAndProjectId("admin-1", "project-a"))
+            .thenReturn(Optional.of(new ProjectMembership("admin-1", "project-a", Role.ORGANIZATION_ADMIN)));
+
+        var decision = authorizationService.authorize(
+            authenticationFor(principal), "project-a", ProjectAuthorizationService.Permission.MANAGE_API_KEYS);
+
+        assertTrue(decision.allowed());
+    }
+
+    @Test
     void rejectsNonManagementPrincipal() {
         UsernamePasswordAuthenticationToken authentication =
             new UsernamePasswordAuthenticationToken("api-key", null, List.of());
