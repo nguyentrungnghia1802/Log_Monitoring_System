@@ -42,6 +42,28 @@ IngestionEnvelope
 | AuditEvent | Sensitive configuration trace |
 | DashboardPreference | Optional saved filters/views |
 
+### Organization membership lifecycle
+
+The current management API stores the organization role and active membership
+state on the `User` document, while project-specific roles remain in
+`project_memberships`. Users created before this field existed derive their
+effective role from legacy project memberships until an organization update
+normalizes it.
+
+```text
+new -> active member
+active member -> role changed
+active member -> disabled
+disabled member -> enabled
+active/disabled member -> removed
+```
+
+Only an active organization administrator can mutate organization settings or
+membership. A role change, disable, or removal that would leave zero active
+organization administrators is rejected with `409 FINAL_ORGANIZATION_ADMIN`.
+Every successful settings or membership mutation emits an audit event with a
+safe static summary; passwords and raw credentials are never included.
+
 ---
 
 ## 3. Log event state

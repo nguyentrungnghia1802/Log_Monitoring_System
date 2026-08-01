@@ -16,8 +16,12 @@ public class User {
 
     private String email;
     private String passwordHash;
+    @Indexed
     private String organizationId;
+    private Role organizationRole;
+    private Boolean active = true;
     private Instant createdAt;
+    private Instant updatedAt;
 
     public User() {}
 
@@ -28,6 +32,7 @@ public class User {
         this.passwordHash = passwordHash;
         this.organizationId = organizationId;
         this.createdAt = Instant.now();
+        this.updatedAt = this.createdAt;
     }
 
     public String getId() { return id; }
@@ -45,6 +50,15 @@ public class User {
     public String getOrganizationId() { return organizationId; }
     public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
 
+    public Role getOrganizationRole() { return organizationRole; }
+    public void setOrganizationRole(Role organizationRole) { this.organizationRole = organizationRole; }
+
+    public boolean isActive() { return active == null || active; }
+    public void setActive(boolean active) { this.active = active; }
+
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

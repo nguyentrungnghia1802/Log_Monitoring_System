@@ -10,6 +10,7 @@ import java.util.List;
 @Repository
 interface AuditLogRepository extends MongoRepository<AuditLog, String> {
     List<AuditLog> findByProjectId(String projectId);
+    List<AuditLog> findByOrganizationIdOrderByTimestampDesc(String organizationId);
 }
 
 @Service
@@ -28,5 +29,9 @@ public class AuditService {
 
     public List<AuditLog> getAuditLogs(String projectId) {
         return auditLogRepository.findByProjectId(projectId);
+    }
+
+    public List<AuditLog> getOrganizationAuditLogs(String organizationId) {
+        return auditLogRepository.findByOrganizationIdOrderByTimestampDesc(organizationId);
     }
 }

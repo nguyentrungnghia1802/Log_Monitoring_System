@@ -13,6 +13,7 @@ public class AuditLog {
     private String id;
 
     private String actor;
+    @Indexed
     private String organizationId;
 
     @Indexed
