@@ -436,11 +436,20 @@ Potentially sensitive fields:
 Controls:
 
 - never store raw API keys;
-- redact known secrets;
+- redact known secrets before queue admission and persistence;
+- do not persist context/tag keys that shadow reserved event fields;
 - keep notification credentials in secret configuration;
 - restrict raw log access by project;
-- apply retention;
+- apply the effective project/level TTL retention policy;
+- keep source exception data distinct from platform operational diagnostics;
 - avoid production data in test fixtures.
+
+The ingestion sanitizer bounds message/stack-trace lengths, context/tag key
+counts, nesting depth, and serialized bytes before a `LogEventDocument` is
+created. Redacted values are persisted as `[REDACTED]`; the original value is
+not recoverable from the MongoDB document. Retention is not a substitute for
+source minimization: source applications should omit credentials and
+unnecessary personal data before sending telemetry.
 
 ---
 

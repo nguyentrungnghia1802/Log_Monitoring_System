@@ -1,5 +1,6 @@
 package com.example.logmonitor.ingestion.worker;
 
+import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.ingestion.domain.LogEvent;
 import com.example.logmonitor.ingestion.infrastructure.IngestionQueue;
 import com.example.logmonitor.persistence.LogEventPersistenceService;
@@ -26,6 +27,7 @@ public class PersistenceWorker {
     private final int workerCount;
     private final int batchMaxSize;
     private final long maxWaitMs;
+    private final SensitiveDataRedactor redactor;
     private volatile boolean running = true;
     private ExecutorService executorService;
 
@@ -34,13 +36,15 @@ public class PersistenceWorker {
         LogEventPersistenceService persistenceService,
         @Value("${ingestion.workers:4}") int workerCount,
         @Value("${ingestion.batch.max-size:500}") int batchMaxSize,
-        @Value("${ingestion.batch.max-wait-ms:500}") long maxWaitMs
+        @Value("${ingestion.batch.max-wait-ms:500}") long maxWaitMs,
+        SensitiveDataRedactor redactor
     ) {
         this.ingestionQueue = ingestionQueue;
         this.persistenceService = persistenceService;
         this.workerCount = workerCount;
         this.batchMaxSize = batchMaxSize;
         this.maxWaitMs = maxWaitMs;
+        this.redactor = redactor;
     }
 
     @PostConstruct
@@ -117,7 +121,11 @@ public class PersistenceWorker {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception ex) {
-                log.error("Unexpected error in worker loop", ex);
+                log.error(
+                    "Unexpected error in worker loop: type={} message={}",
+                    ex.getClass().getSimpleName(),
+                    redactor.redactText(ex.getMessage())
+                );
             }
         }
     }
@@ -130,7 +138,12 @@ public class PersistenceWorker {
             persistenceService.persist(batch);
             log.debug("Persisted worker batch size={}", batch.size());
         } catch (Exception ex) {
-            log.error("Failed to persist batch of size {}", batch.size(), ex);
+            log.error(
+                "Failed to persist batch of size {}: type={} message={}",
+                batch.size(),
+                ex.getClass().getSimpleName(),
+                redactor.redactText(ex.getMessage())
+            );
         }
     }
 }

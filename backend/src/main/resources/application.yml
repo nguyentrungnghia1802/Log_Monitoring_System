@@ -34,6 +34,42 @@ ingestion:
     max-size: ${INGESTION_BATCH_MAX_SIZE:500}
     max-wait-ms: ${INGESTION_BATCH_MAX_WAIT_MS:500}
   enqueue-timeout-ms: ${INGESTION_ENQUEUE_TIMEOUT_MS:5}
+  limits:
+    max-http-body-bytes: ${INGESTION_MAX_HTTP_BODY_BYTES:1048576}
+    max-batch-size: ${INGESTION_BATCH_MAX_SIZE:500}
+    max-message-length: ${INGESTION_MAX_MESSAGE_LENGTH:4000}
+    max-stack-trace-length: ${INGESTION_MAX_STACK_TRACE_LENGTH:16000}
+    max-exception-message-length: ${INGESTION_MAX_EXCEPTION_MESSAGE_LENGTH:4000}
+    max-field-length: ${INGESTION_MAX_FIELD_LENGTH:256}
+    max-context-serialized-bytes: ${INGESTION_MAX_CONTEXT_BYTES:32768}
+    max-tags-serialized-bytes: ${INGESTION_MAX_TAGS_BYTES:16384}
+    max-context-keys: ${INGESTION_MAX_CONTEXT_KEYS:50}
+    max-tag-keys: ${INGESTION_MAX_TAG_KEYS:50}
+    max-key-length: ${INGESTION_MAX_CONTEXT_KEY_LENGTH:100}
+    max-nesting-depth: ${INGESTION_MAX_CONTEXT_DEPTH:5}
+    max-collection-entries: ${INGESTION_MAX_COLLECTION_ENTRIES:100}
+    max-string-value-length: ${INGESTION_MAX_CONTEXT_STRING_LENGTH:4000}
+
+security:
+  redaction:
+    enabled: ${LOG_REDACTION_ENABLED:true}
+    replacement: "${LOG_REDACTION_REPLACEMENT:[REDACTED]}"
+    fields:
+      - password
+      - passwd
+      - secret
+      - token
+      - access_token
+      - refresh_token
+      - api_key
+      - apikey
+      - raw_api_key
+      - authorization
+      - cookie
+      - private_key
+      - client_secret
+      - webhook_token
+      - bot_token
 
 api-key:
   requests-per-second: ${API_KEY_REQUESTS_PER_SECOND:100}
