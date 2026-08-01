@@ -20,16 +20,45 @@ The application uses MongoDB intentionally to learn document modeling, compound 
 | --- | --- |
 | `organizations` | Tenant settings |
 | `users` | Management user identity/profile |
-| `memberships` | Organization/project authorization |
+| `project_memberships` | Project authorization and legacy organization-admin compatibility |
 | `projects` | Monitored project settings |
 | `api_keys` | Hashed ingestion credentials and scope |
 | `log_events` | High-volume normalized event storage |
 | `alert_rules` | Threshold configuration |
 | `alert_occurrences` | Triggered alert history/delivery state |
-| `audit_events` | Sensitive configuration history |
+| `audit_logs` | Sensitive configuration history (logical audit events) |
 | `dashboard_preferences` | Optional saved filters/views |
 
 V1 may embed project service/environment metadata in `projects` instead of separate collections where write/update patterns remain simple.
+
+### `organizations` document
+
+```json
+{
+  "_id": "org-1",
+  "slug": "acme",
+  "name": "Acme Platform",
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  },
+  "createdAt": "ISODate",
+  "updatedAt": "ISODate"
+}
+```
+
+Organization settings are bounded to 20 string entries, 64 characters per key,
+and 256 characters per value. A legacy organization ID is lazily materialized
+when an authenticated organization endpoint is first read, so administration
+does not require a manual seed edit.
+
+### Management user fields
+
+`users` retains the existing unique username and organization scope and now
+stores `organizationRole`, `active`, and `updatedAt`. `passwordHash` is never
+returned by management DTOs. `organizationId` is indexed for membership lists;
+an inactive or removed user cannot authenticate into organization APIs. The
+organization role is `ORGANIZATION_ADMIN`, `PROJECT_OPERATOR`, or `VIEWER`.
 
 ---
 
@@ -249,6 +278,8 @@ Potential partial indexes may be evaluated for fields such as `traceId` if spars
 - `organizations.slug` unique;
 - project key unique within organization;
 - API-key `publicId` unique;
+- `users.organizationId` for organization member listing;
+- `audit_logs.organizationId` for organization configuration history;
 - user normalized email unique;
 - membership organization/user unique;
 - alert rule project/status index;
@@ -418,6 +449,12 @@ Transactions may be used only where configuration writes require atomic multi-do
 - alert configuration + secret reference.
 
 Prefer single-document atomicity where document design allows it.
+
+The current C1 service persists the user/organization document and then writes
+the audit record using the existing V1 audit service. A production deployment
+that requires atomic membership-plus-audit commit should enable a MongoDB
+replica set and wrap those two writes in a transaction; this remains an
+explicit hardening item rather than an implicit durability claim.
 
 ---
 

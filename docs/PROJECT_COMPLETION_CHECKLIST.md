@@ -460,20 +460,38 @@ worker batch persistence, and documented pre-MongoDB loss window are unchanged.
 
 ### Tasks
 
-- [ ] organization detail API;
-- [ ] organization settings update;
-- [ ] list users/memberships;
-- [ ] invite/create management user;
-- [ ] change membership role;
-- [ ] disable/remove membership;
-- [ ] protect final organization-admin ownership;
-- [ ] audit all membership changes;
-- [ ] frontend organization/user management pages;
-- [ ] loading, empty, error, retry, and confirmation states.
+- [x] organization detail API;
+- [x] organization settings update;
+- [x] list users/memberships;
+- [x] invite/create management user;
+- [x] change membership role;
+- [x] disable/remove membership;
+- [x] protect final organization-admin ownership;
+- [x] audit all membership changes;
+- [x] frontend organization/user management pages;
+- [x] loading, empty, error, retry, and confirmation states.
 
 ### Exit criteria
 
-- [ ] An organization can be administered without direct MongoDB edits or seed changes.
+- [~] An organization can be administered without direct MongoDB edits or seed changes.
+
+Evidence (2026-08-02): `OrganizationController`,
+`OrganizationManagementService`, `OrganizationAuthorizationService`, and the
+`organizations` document implement current-organization detail/settings,
+member listing, BCrypt-hashed user creation, role/status changes, soft removal,
+and final-admin protection. Legacy users retain a project-membership fallback;
+new organization roles are persisted on `users.organizationRole`. Every
+successful organization or membership mutation writes an organization-scoped
+audit record without passwords. `OrganizationPage` and
+`organizationApi.ts` provide settings/member management with loading, empty,
+error/retry, and confirmation states. `OrganizationManagementServiceTest` and
+`OrganizationControllerTest` cover service and Mongo-backed HTTP behavior;
+`OrganizationPage.test.tsx` covers the empty state. The remaining gap is the
+management login/session bootstrap UI: the page uses an existing
+`localStorage.accessToken`, so a complete first-time browser onboarding flow is
+not yet claimed. Final validation: backend Gradle test produced 69 tests in
+22 suites with 0 failures/errors/skips; frontend typecheck, lint, 2 Vitest
+tests, and production build passed.
 
 ---
 

@@ -6,6 +6,7 @@ import { AnalyticsPage } from '../pages/analytics/AnalyticsPage'
 import { LiveTailPage } from '../pages/livetail/LiveTailPage'
 import { AlertRulesPage } from '../pages/alerts/AlertRulesPage'
 import { AlertsPage } from '../pages/alerts/AlertsPage'
+import { OrganizationPage } from '../pages/organization/OrganizationPage'
 
 export function AppRouter() {
   return (
@@ -19,6 +20,7 @@ export function AppRouter() {
           <Route path="/live-tail" element={<LiveTailPage />} />
           <Route path="/alerts/rules" element={<AlertRulesPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/organization" element={<OrganizationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

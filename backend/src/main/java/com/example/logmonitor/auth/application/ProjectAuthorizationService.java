@@ -46,9 +46,14 @@ public class ProjectAuthorizationService {
         Optional<User> user = userRepository.findById(principal.userId());
         if (user.isEmpty()
             || user.get().getOrganizationId() == null
+            || !user.get().isActive()
             || principal.organizationId() == null
             || !Objects.equals(user.get().getOrganizationId(), principal.organizationId())) {
             return AuthorizationDecision.denied();
+        }
+
+        if (user.get().getOrganizationRole() == Role.ORGANIZATION_ADMIN) {
+            return AuthorizationDecision.granted();
         }
 
         return membershipRepository.findByUserIdAndProjectId(principal.userId(), projectId)

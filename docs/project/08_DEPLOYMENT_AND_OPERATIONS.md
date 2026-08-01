@@ -79,6 +79,16 @@ source-side sample instead. Monitor `ingestion.rejected.validation` and
 must be shorter than the approved diagnostic need, and raw log access remains
 project-scoped.
 
+### Organization administration operations
+
+Organization settings and membership changes are management configuration writes,
+not ingestion events. Keep the organization-management endpoints behind HTTPS
+and the JWT boundary, monitor `401`/`403`/`409 FINAL_ORGANIZATION_ADMIN` responses,
+and verify audit records during access reviews. Passwords are hashed at creation;
+operators must not request or log temporary passwords. Removing a user also
+clears project memberships and disables the user record, while retaining the
+non-sensitive identity row for audit/history purposes.
+
 ---
 
 ## 4. Health model

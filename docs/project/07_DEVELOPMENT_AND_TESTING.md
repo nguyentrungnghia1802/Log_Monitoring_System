@@ -96,6 +96,16 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 - `expireAt` computed from retention;
 - API key revoked path.
 
+### Organization management
+
+- current organization detail and settings update;
+- organization member listing without password-hash leakage;
+- BCrypt password hashing on management-user creation;
+- role change, disable, remove, and disabled-login rejection;
+- final active organization-admin protection;
+- organization-scoped audit records;
+- frontend loading, empty, error/retry, and destructive-action confirmation states.
+
 ### Queue
 
 - admission succeeds below capacity;

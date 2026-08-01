@@ -46,6 +46,17 @@ Authorization must always combine the authenticated identity with organization/p
 | FR-AUTH-005 | Allow API-key rotation and revocation | Required |
 | FR-AUTH-006 | Record sensitive configuration actions in audit events | Required |
 
+### Organization administration
+
+| ID | Requirement | V1 |
+| --- | --- | --- |
+| FR-ORG-001 | Read and update the current organization summary/settings | Required |
+| FR-ORG-002 | List organization users and their effective roles/status | Required |
+| FR-ORG-003 | Create a management user with a hashed password | Required |
+| FR-ORG-004 | Change membership role and enable/disable membership | Required |
+| FR-ORG-005 | Prevent removal or demotion of the final active organization administrator | Required |
+| FR-ORG-006 | Audit organization settings and membership changes without storing credentials | Required |
+
 ### Organization, project, and service management
 
 | ID | Requirement | V1 |
@@ -282,6 +293,7 @@ contain only safe diagnostics and no request payload or credential values.
 12. MongoDB unavailability makes readiness fail while liveness can remain healthy.
 13. Graceful shutdown stops accepting new traffic, attempts a bounded queue flush, and records remaining queue depth.
 14. Cross-organization access attempts return forbidden/not-found semantics without leaking foreign tenant data.
+15. An organization administrator can update organization settings and manage users without direct MongoDB edits; the final active administrator cannot be removed or demoted.
 
 ---
 

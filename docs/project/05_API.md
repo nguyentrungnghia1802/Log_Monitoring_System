@@ -12,9 +12,10 @@
 - Tenant/project scope is derived from authenticated identity.
 
 Current implementation note (2026-08-02): management routes are being delivered
-incrementally. The implemented project-scoped route families are logs, analytics,
-alert rules, alert occurrences, and API-key lifecycle management. Organization and
-project CRUD routes listed below remain planned until their controllers and tests exist.
+incrementally. Logs, analytics, alert rules, alert occurrences, API-key lifecycle,
+and the current-organization/user-management route family have controllers and
+tests. Project CRUD routes listed below remain planned until their controllers and
+tests exist.
 
 ---
 
@@ -96,9 +97,9 @@ or invalid management token is rejected with `401`.
 
 Every request under `/api/v1/projects/{projectId}/**` requires a valid JWT,
 the current user's organization claim to match the stored user record, and a
-current membership for the selected project. `VIEWER` can read but cannot
-mutate project resources. A project ID supplied in a URL or request body is
-never sufficient to grant access.
+current membership for the selected project unless the user is an active global
+`ORGANIZATION_ADMIN`. `VIEWER` can read but cannot mutate project resources. A
+project ID supplied in a URL or request body is never sufficient to grant access.
 
 Nested resource lookups (for example `ruleId`, `alertId`, and log IDs) include
 the URL project scope in the repository query. A resource that exists in a
@@ -115,8 +116,22 @@ the project-level denial itself is `403`.
 | GET | `/api/v1/organizations/current/users` | List memberships/users |
 | POST | `/api/v1/organizations/current/users` | Invite/create management user |
 | PATCH | `/api/v1/organizations/current/users/:userId` | Change role/status |
+| DELETE | `/api/v1/organizations/current/users/:userId` | Remove organization membership |
 
-V1 may simplify onboarding and start from one seeded organization admin, but authorization boundaries must exist from the beginning.
+`GET` organization routes require an active JWT user whose current organization
+matches the stored user record. Settings and membership mutations additionally
+require `ORGANIZATION_ADMIN`. The current organization document is created from
+the authenticated organization ID when a legacy installation has not materialized
+it yet.
+
+User creation requires a unique username, valid email, 12–128 character
+password, and one of `ORGANIZATION_ADMIN`, `PROJECT_OPERATOR`, or `VIEWER`.
+Passwords are BCrypt-hashed and are never returned. `PATCH` changes role and/or
+active state; `DELETE` disables the user, clears organization membership, and
+removes project memberships. The final active organization administrator cannot
+be demoted, disabled, or removed (`409 FINAL_ORGANIZATION_ADMIN`). Successful
+settings and membership mutations create safe organization-scoped audit records.
+List and detail responses expose metadata only, never `passwordHash`.
 
 ---
 

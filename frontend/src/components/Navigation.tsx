@@ -10,6 +10,7 @@ export function Navigation() {
         { label: 'Live Tail', path: '/live-tail' },
         { label: 'Alert Rules', path: '/alerts/rules' },
         { label: 'Alert History', path: '/alerts' },
+        { label: 'Organization', path: '/organization' },
     ]
 
     return (
