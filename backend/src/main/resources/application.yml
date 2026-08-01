@@ -34,3 +34,21 @@ ingestion:
     max-size: ${INGESTION_BATCH_MAX_SIZE:500}
     max-wait-ms: ${INGESTION_BATCH_MAX_WAIT_MS:500}
   enqueue-timeout-ms: ${INGESTION_ENQUEUE_TIMEOUT_MS:5}
+
+livetail:
+  max-connections-per-user: ${LIVETAIL_MAX_CONNECTIONS_PER_USER:3}
+  max-connections-per-ip: ${LIVETAIL_MAX_CONNECTIONS_PER_IP:20}
+  max-subscriptions-per-session: ${LIVETAIL_MAX_SUBSCRIPTIONS_PER_SESSION:8}
+  inbound-core-pool-size: ${LIVETAIL_INBOUND_CORE_POOL_SIZE:2}
+  inbound-max-pool-size: ${LIVETAIL_INBOUND_MAX_POOL_SIZE:8}
+  inbound-queue-capacity: ${LIVETAIL_INBOUND_QUEUE_CAPACITY:128}
+  outbound-core-pool-size: ${LIVETAIL_OUTBOUND_CORE_POOL_SIZE:2}
+  outbound-max-pool-size: ${LIVETAIL_OUTBOUND_MAX_POOL_SIZE:8}
+  outbound-queue-capacity: ${LIVETAIL_OUTBOUND_QUEUE_CAPACITY:256}
+  broker-send-timeout-ms: ${LIVETAIL_BROKER_SEND_TIMEOUT_MS:100}
+  message-size-limit-bytes: ${LIVETAIL_MESSAGE_SIZE_LIMIT_BYTES:131072}
+  send-time-limit-ms: ${LIVETAIL_SEND_TIME_LIMIT_MS:10000}
+  send-buffer-size-limit-bytes: ${LIVETAIL_SEND_BUFFER_SIZE_LIMIT_BYTES:524288}
+  allowed-origin-patterns:
+    - ${LIVETAIL_ALLOWED_ORIGIN_1:http://localhost:*}
+    - ${LIVETAIL_ALLOWED_ORIGIN_2:http://127.0.0.1:*}

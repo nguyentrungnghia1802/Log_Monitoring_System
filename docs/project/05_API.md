@@ -11,6 +11,11 @@
 - Stable machine-readable error codes.
 - Tenant/project scope is derived from authenticated identity.
 
+Current implementation note (2026-08-02): management routes are being delivered
+incrementally. The implemented project-scoped route families are logs, analytics,
+alert rules, and alert occurrences. Organization/project/API-key management routes
+listed below remain planned until their controllers and tests exist.
+
 ---
 
 ## 2. Management response envelope
@@ -82,6 +87,23 @@ Status: `503`.
 | POST | `/api/v1/auth/refresh` | Refresh/session boundary | Renew access session |
 | POST | `/api/v1/auth/logout` | Authenticated | End session |
 | GET | `/api/v1/auth/me` | Authenticated | Current user and memberships |
+
+The current backend implementation exposes `POST /api/v1/auth/register` and
+`POST /api/v1/auth/login`. Refresh, logout, and `/me` remain planned; a missing
+or invalid management token is rejected with `401`.
+
+## 4.1 Project authorization
+
+Every request under `/api/v1/projects/{projectId}/**` requires a valid JWT,
+the current user's organization claim to match the stored user record, and a
+current membership for the selected project. `VIEWER` can read but cannot
+mutate project resources. A project ID supplied in a URL or request body is
+never sufficient to grant access.
+
+Nested resource lookups (for example `ruleId`, `alertId`, and log IDs) include
+the URL project scope in the repository query. A resource that exists in a
+different project is returned as `404` within the caller's authorized scope;
+the project-level denial itself is `403`.
 
 ---
 
@@ -244,6 +266,10 @@ GET /api/v1/projects/:projectId/logs/:logId
 
 ## 10. Analytics
 
+The current backend exposes `/analytics/summary` and `/analytics/histogram`.
+The more granular paths below are the target contract for a later compatible
+split and are not yet implemented.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/projects/:projectId/analytics/timeseries` | Counts by time bucket |
@@ -313,27 +339,42 @@ Create example:
 Endpoint:
 
 ```text
-/ws
+/ws-logs
 ```
 
-Authenticated subscriptions should use server-authorized destinations, for example:
+Spring exposes SockJS and native WebSocket variants at `/ws-logs`. The
+connection must send a signed JWT in the STOMP `CONNECT` command:
 
 ```text
-/user/queue/live-logs
+Authorization: Bearer <management-access-token>
 ```
 
-Client sends a subscribe command/filter message such as:
+The only live-tail subscription destination is a user destination:
 
-```json
-{
-  "projectId": "...",
-  "environment": "production",
-  "services": ["queue-service"],
-  "levels": ["WARN", "ERROR"]
-}
+```text
+/user/queue/projects/{projectId}/livetail
 ```
 
-Server creates an internal subscription object after authorization.
+The backend resolves the session user, re-checks current organization and
+project membership, and then records the subscription. A project ID in the
+destination is a selector only; it never grants access. The following optional
+STOMP native headers are validated and applied server-side:
+
+```text
+level: ERROR
+service: queue-service
+environment: production
+```
+
+`level` accepts `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, or `FATAL`.
+Service/environment filters are bounded exact-match values. Each session and
+user/IP has a configured connection/subscription limit. The outbound executor
+and WebSocket send buffer are bounded; saturated sends are counted as dropped
+live-tail events and a client that exceeds transport send limits is disconnected.
+
+The React page keeps a bounded 200-event browser history. It reads the JWT from
+`localStorage['log-monitoring.access-token']`; no token is placed in the WebSocket
+URL.
 
 Do not expose a destination where the browser can subscribe to an arbitrary project ID without server validation.
 
@@ -353,7 +394,8 @@ Optional custom operational endpoint:
 GET /api/v1/system/ingestion-status
 ```
 
-Admin/operator only. May show:
+Authenticated management user only in the current implementation; role-specific
+operator/admin enforcement remains planned. May show:
 
 ```json
 {

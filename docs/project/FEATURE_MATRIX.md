@@ -1,0 +1,39 @@
+# Feature Matrix — Repository Re-audit
+
+Last reviewed: 2026-08-02
+
+This is an evidence index for the baseline re-audit. `[x]` means the current
+implementation and a relevant automated test were found. `[~]` means code
+exists but the contract, security boundary, or validation is incomplete.
+
+| Requirement | Implementation | Tests | Status |
+| --- | --- | --- | --- |
+| FR-ING-001/002/005/006 — single/batch admission and backpressure | `backend/src/main/java/com/example/logmonitor/ingestion/{api,application,infrastructure}` | `IngestionControllerTest`, `BatchIngestionControllerTest`, `IngestionQueueTest` | [x] |
+| FR-STO-002/003/006 — batching, bulk write, retention | `PersistenceWorker`, `LogEventPersistenceService`, `RetentionPolicyResolver` | `RetentionPolicyResolverTest`, persistence/application context tests | [~] |
+| FR-LOG-001/002/004/005/007 — scoped search and cursor | `LogQueryController`, `LogQueryService`, `LogEventRepository` | `LogQueryServiceTest` | [~] |
+| FR-AN-001/002/003/004/005 — Mongo analytics | `AnalyticsController`, `AnalyticsService` | `AnalyticsServiceTest` | [~] |
+| FR-LIVE-001/002/004 — authenticated, filtered, bounded STOMP live tail | `WebSocketConfig`, `LiveTailPublisher`, `LiveTailSubscriptionRegistry`, `StompAuthChannelInterceptor` | `StompAuthChannelInterceptorTest`, `LiveTailSubscriptionRegistryTest`, `LiveTailPublisherTest` | [x] |
+| FR-ALT-001/003/005/006/007/008 — alert rules, cooldown, occurrence, adapters | `AlertRuleController`, `AlertController`, `AlertService`, notification adapters | `AlertServiceTest` | [~] |
+| FR-AUTH-001/002 — JWT and project membership checks | `JwtService`, `ProjectAuthorizationService`, `ProjectSecurityInterceptor`, auth domain | `ProjectAuthorizationServiceTest`, `Phase9SecurityTest` | [x] |
+| FR-AUTH-004/005 — hashed API-key creation and revocation | `ApiKeyService`, `ApiKeyAuthenticationFilter` | `Phase9SecurityTest` | [~] |
+| FR-OBS-001/003/004 — health and ingestion status | `SystemStatusController`, queue/worker metrics | `SystemStatusEndpointTest`, queue tests | [x] |
+| Cross-project nested alert isolation | `AlertRuleRepository`, `AlertOccurrenceRepository`, `AlertService` use `(id, projectId)` lookups | `Phase9SecurityTest.doesNotExposeForeignProjectNestedAlertResources` | [x] |
+| Management project/API-key lifecycle | no management controllers found for project or API-key CRUD | no API integration tests found | [ ] |
+
+## Audit findings
+
+- `202 Accepted` remains memory-queue admission; no durability claim was added.
+- The static `demo-api-key` authentication bypass was removed. Tests now create
+  a real random key and validate it through the hash-backed repository path.
+- `docs/project/05_API.md` describes management routes that are not present in
+  the current controller tree; those requirements remain incomplete.
+- The starter module now disables executable `bootJar` generation and publishes
+  a normal library JAR; this fixes the multi-module assemble failure.
+- Live Tail now authenticates STOMP `CONNECT`, authorizes user destinations against
+  current project membership, filters before fan-out, and bounds session,
+  subscription, channel, and transport buffers. Drops and authorization failures
+  are exposed through low-cardinality Micrometer metrics.
+- An earlier default multi-context run exposed an order/isolation-sensitive
+  API-key failure. The controlled backend application suite now passes all 20
+  tests with `./gradlew :test --no-parallel`; broader test-isolation hardening
+  remains useful before CI parallelization.

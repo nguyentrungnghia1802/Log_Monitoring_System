@@ -24,21 +24,21 @@ public class AlertController {
 
     @GetMapping("/{alertId}")
     public ResponseEntity<AlertOccurrence> getAlert(@PathVariable String projectId, @PathVariable String alertId) {
-        return alertService.getAlert(alertId)
+        return alertService.getAlert(projectId, alertId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{alertId}/acknowledge")
     public ResponseEntity<AlertOccurrence> acknowledgeAlert(@PathVariable String projectId, @PathVariable String alertId) {
-        return alertService.acknowledgeAlert(alertId)
+        return alertService.acknowledgeAlert(projectId, alertId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/{alertId}/retry-notification")
     public ResponseEntity<AlertOccurrence> retryNotification(@PathVariable String projectId, @PathVariable String alertId) {
-        return alertService.retryNotification(alertId)
+        return alertService.retryNotification(projectId, alertId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.notFound().build());
     }

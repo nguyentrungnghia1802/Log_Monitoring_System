@@ -10,9 +10,14 @@ public class LineQueueSimulator {
     public static void main(String[] args) {
         System.out.println("Starting LINE Smart Queue Event Simulator...");
 
+        String apiKey = System.getenv("LOG_MONITORING_API_KEY");
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("Set LOG_MONITORING_API_KEY to a key created by the monitoring platform");
+        }
+
         LogMonitoringClientConfig config = new LogMonitoringClientConfig()
             .setEndpoint("http://localhost:8080")
-            .setApiKey("demo-api-key")
+            .setApiKey(apiKey)
             .setService("line-smart-queue")
             .setEnvironment("production")
             .setQueueCapacity(1000)

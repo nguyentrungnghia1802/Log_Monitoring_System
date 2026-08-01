@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Client } from '@stomp/stompjs'
+import { Client, type StompSubscription } from '@stomp/stompjs'
 import type { LogEvent } from '../../types/log'
 
 export function LiveTailPage() {
     const [projectId] = useState('demo-project')
     const [connected, setConnected] = useState(false)
+    const [connectionError, setConnectionError] = useState<string | null>(null)
     const [paused, setPaused] = useState(false)
     const [events, setEvents] = useState<LogEvent[]>([])
 
@@ -21,15 +22,28 @@ export function LiveTailPage() {
     }, [paused])
 
     useEffect(() => {
+        const accessToken = window.localStorage.getItem('log-monitoring.access-token')
+        if (!accessToken) {
+            setConnectionError('Sign in and store an access token before opening Live Tail.')
+            return
+        }
+
         const wsUrl = `ws://${window.location.hostname}:8080/ws-logs`
+        const destination = `/user/queue/projects/${projectId}/livetail`
+        const subscriptionRef = { current: undefined as StompSubscription | undefined }
         const client = new Client({
             brokerURL: wsUrl,
+            connectHeaders: {
+                Authorization: `Bearer ${accessToken}`,
+            },
             reconnectDelay: 3000,
             heartbeatIncoming: 4000,
             heartbeatOutgoing: 4000,
             onConnect: () => {
                 setConnected(true)
-                client.subscribe(`/topic/projects/${projectId}/livetail`, (message) => {
+                setConnectionError(null)
+                let subscription: StompSubscription | undefined
+                subscription = client.subscribe(destination, (message) => {
                     try {
                         const event: LogEvent = JSON.parse(message.body)
                         if (pausedRef.current) {
@@ -40,21 +54,30 @@ export function LiveTailPage() {
                     } catch (err) {
                         console.error('Failed to parse STOMP message', err)
                     }
+                }, {
+                    id: `live-tail-${projectId}`,
                 })
+                subscriptionRef.current = subscription
             },
             onDisconnect: () => {
                 setConnected(false)
             },
+            onWebSocketError: () => {
+                setConnected(false)
+                setConnectionError('Live Tail WebSocket connection failed.')
+            },
             onStompError: (frame) => {
                 console.error('STOMP error', frame)
                 setConnected(false)
+                setConnectionError('Live Tail subscription was rejected by the server.')
             },
         })
 
         client.activate()
 
         return () => {
-            client.deactivate()
+            subscriptionRef.current?.unsubscribe()
+            void client.deactivate()
         }
     }, [projectId])
 
@@ -126,6 +149,12 @@ export function LiveTailPage() {
                 </div>
             </div>
 
+            {connectionError && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {connectionError}
+                </p>
+            )}
+
             {/* Stream Filters */}
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-wrap items-center gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
@@ -172,7 +201,7 @@ export function LiveTailPage() {
                 <div className="flex-1 overflow-y-auto pt-3 space-y-1.5 max-h-[600px]">
                     {filteredEvents.length === 0 && (
                         <div className="text-slate-600 text-center py-20 font-sans">
-                            Waiting for incoming log events on /topic/projects/{projectId}/livetail...
+                            Waiting for incoming log events on /user/queue/projects/{projectId}/livetail...
                         </div>
                     )}
                     {filteredEvents.map((evt, idx) => (
