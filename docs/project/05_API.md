@@ -13,8 +13,8 @@
 
 Current implementation note (2026-08-02): management routes are being delivered
 incrementally. The implemented project-scoped route families are logs, analytics,
-alert rules, and alert occurrences. Organization/project/API-key management routes
-listed below remain planned until their controllers and tests exist.
+alert rules, alert occurrences, and API-key lifecycle management. Organization and
+project CRUD routes listed below remain planned until their controllers and tests exist.
 
 ---
 
@@ -152,6 +152,25 @@ Project response includes:
 
 Raw key value appears only in create/rotate success responses.
 
+API-key management requires an authenticated `ORGANIZATION_ADMIN` membership for
+the selected project. List responses expose metadata only: `id`, `projectId`,
+`name`, stable `publicId`, `secretLast4`, lifecycle status, and timestamps. They
+never expose the raw key or its password hash.
+
+The raw format is `lm_live_<publicId>_<secret>`. The public id is a lookup
+selector, while the secret is generated from 32 random bytes and stored only as
+a BCrypt hash. Rotation revokes the old key before issuing a replacement; the
+old value immediately returns `401`. Create, rotate, and revoke write safe audit
+events without including the raw header value.
+
+Ingestion derives `organizationId`, `projectId`, and `apiKeyId` from the
+authenticated `X-API-Key`. Any project-like value supplied as extra request data
+is not an authority. Valid ingestion requests are token-bucket limited per key;
+defaults are `100` requests/second with a `200` request burst and can be changed
+with `API_KEY_REQUESTS_PER_SECOND` and `API_KEY_BURST_CAPACITY`. `lastUsedAt` is
+persisted at most once per configured interval (`API_KEY_LAST_USED_UPDATE_INTERVAL_SECONDS`,
+default `60`) to avoid a database write on every event.
+
 ---
 
 ## 8. Ingestion endpoints
@@ -160,7 +179,7 @@ Raw key value appears only in create/rotate success responses.
 
 ```http
 POST /api/v1/ingest/logs
-X-API-Key: lm_...
+X-API-Key: lm_live_ak_..._...
 Content-Type: application/json
 ```
 
@@ -438,9 +457,9 @@ FORBIDDEN
 PROJECT_NOT_FOUND
 API_KEY_INVALID
 API_KEY_REVOKED
+RATE_LIMITED
 INGESTION_BACKPRESSURE
 DEPENDENCY_UNAVAILABLE
-RATE_LIMITED
 SEARCH_RANGE_TOO_LARGE
 ALERT_RULE_CONFLICT
 INTERNAL_ERROR

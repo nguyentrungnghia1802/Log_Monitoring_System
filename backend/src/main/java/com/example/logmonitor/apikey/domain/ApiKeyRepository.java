@@ -8,6 +8,8 @@ import java.util.Optional;
 
 @Repository
 public interface ApiKeyRepository extends MongoRepository<ApiKey, String> {
+    Optional<ApiKey> findByPublicId(String publicId);
     List<ApiKey> findByKeyPrefix(String keyPrefix);
-    List<ApiKey> findByProjectId(String projectId);
+    List<ApiKey> findByProjectIdOrderByCreatedAtDesc(String projectId);
+    Optional<ApiKey> findByIdAndProjectId(String id, String projectId);
 }

@@ -299,9 +299,10 @@ occurrence repository lookups now use `(id, projectId)`, preventing nested-ID
 cross-project disclosure. `Phase9SecurityTest` covers foreign log search/detail,
 analytics, alert rule/occurrence detail, unauthenticated access, and system
 status protection; `ProjectAuthorizationServiceTest` covers role and stale
-organization decisions. Organization/project/API-key management controllers and
-API-key cross-project tests remain incomplete. WebSocket authorization is covered
-by the B4 interceptor/registry/publisher tests below.
+organization decisions. Organization/project management controllers remain
+incomplete; API-key management controllers and cross-project tests are covered
+by the B3 evidence below. WebSocket authorization is covered by the B4
+interceptor/registry/publisher tests below.
 Validation: backend `./gradlew :test --no-parallel` passed all 20 tests,
 `./gradlew :build --no-parallel` and multi-module `./gradlew assemble` passed;
 frontend lint, typecheck, test, and build passed with existing warnings only.
@@ -312,35 +313,53 @@ frontend lint, typecheck, test, and build passed with existing warnings only.
 
 ### Tasks
 
-- [ ] Generate high-entropy API-key secrets.
-- [ ] Use a stable public lookup identifier.
-- [ ] Store only a secure hash of the secret.
-- [ ] Return the raw key only once at creation/rotation.
-- [ ] Never return raw secret through list/detail APIs.
-- [ ] Implement active/revoked lifecycle.
-- [ ] Implement rotation that invalidates the old key.
-- [ ] Scope every key to exactly the allowed project(s).
-- [ ] Optionally support environment scope only if documented.
-- [ ] Record safe `lastUsedAt`.
-- [ ] Rate-limit ingestion per API key.
-- [ ] Audit creation, rotation, and revocation.
-- [ ] Redact `X-API-Key` from every platform log.
+- [x] Generate high-entropy API-key secrets.
+- [x] Use a stable public lookup identifier.
+- [x] Store only a secure hash of the secret.
+- [x] Return the raw key only once at creation/rotation.
+- [x] Never return raw secret through list/detail APIs.
+- [x] Implement active/revoked lifecycle.
+- [x] Implement rotation that invalidates the old key.
+- [x] Scope every key to exactly the allowed project(s).
+- [x] Do not support environment scope in V1; the absence is documented and project scope is exact.
+- [x] Record safe `lastUsedAt`.
+- [x] Rate-limit ingestion per API key.
+- [x] Audit creation, rotation, and revocation.
+- [x] Redact `X-API-Key` from every platform log.
 
 ### Tests
 
-- [ ] valid key;
-- [ ] malformed key;
-- [ ] unknown public identifier;
-- [ ] incorrect secret;
-- [ ] revoked key;
-- [ ] rotated old key;
-- [ ] foreign project supplied in payload;
-- [ ] list API never contains secret.
+- [x] valid key;
+- [x] malformed key;
+- [x] unknown public identifier;
+- [x] incorrect secret;
+- [x] revoked key;
+- [x] rotated old key;
+- [x] foreign project supplied in payload is ignored as an authority;
+- [x] list API never contains secret.
 
 ### Exit criteria
 
-- [ ] A leaked database does not immediately reveal usable ingestion keys.
-- [ ] Source applications cannot select another project through request data.
+- [x] A leaked database does not immediately reveal usable ingestion keys.
+- [x] Source applications cannot select another project through request data.
+
+Evidence (2026-08-02): `ApiKeyService` generates a 96-bit public lookup id and
+256-bit random secret, stores only BCrypt `hashedSecret`, and exposes raw material
+only through create/rotate results. `ApiKeyController` maps list/revoke responses
+to metadata DTOs and requires `ORGANIZATION_ADMIN`; repository operations include
+`projectId`. `ApiKeyAuthenticationFilter` validates the scoped key, applies a
+per-key token bucket, and never logs the header; `IngestionService` takes project
+and organization from the authenticated principal, not request data. Lifecycle
+actions write safe CREATE/ROTATE/REVOKE audit summaries and throttle `lastUsedAt`
+writes.
+
+Tests: `ApiKeyServiceTest` covers high entropy/hash-only storage, valid/malformed/
+unknown/incorrect/revoked keys, last-used throttling, rotation, and foreign-scope
+revoke; `ApiKeyAuthenticationFilterTest` covers the 429 per-key burst boundary;
+`Phase9SecurityTest` covers admin CRUD, metadata-only list, old-key invalidation,
+foreign project authorization, and a payload project selector that cannot change
+the key scope. Full backend `test` passed 52/52 tests with no failures, and
+backend `build` passed with the pre-existing locked SDK test task excluded.
 
 ---
 

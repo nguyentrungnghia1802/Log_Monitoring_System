@@ -2,6 +2,8 @@ package com.example.logmonitor.auth.config;
 
 import com.example.logmonitor.apikey.application.ApiKeyService;
 import com.example.logmonitor.apikey.domain.ApiKey;
+import com.example.logmonitor.apikey.config.ApiKeyProperties;
+import com.example.logmonitor.common.RateLimiterService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,9 +21,17 @@ import java.util.Optional;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private final ApiKeyService apiKeyService;
+    private final ApiKeyProperties properties;
+    private final RateLimiterService rateLimiterService;
 
-    public ApiKeyAuthenticationFilter(ApiKeyService apiKeyService) {
+    public ApiKeyAuthenticationFilter(
+        ApiKeyService apiKeyService,
+        ApiKeyProperties properties,
+        RateLimiterService rateLimiterService
+    ) {
         this.apiKeyService = apiKeyService;
+        this.properties = properties;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @Override
@@ -35,20 +45,29 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 Optional<ApiKey> validKey = apiKeyService.validateApiKey(apiKeyHeader);
                 if (validKey.isPresent()) {
                     ApiKey key = validKey.get();
+                    String limiterKey = key.getId() != null ? key.getId() : key.getPublicId();
+                    int capacity = Math.max(1, properties.getBurstCapacity());
+                    int refillRate = Math.max(1, properties.getRequestsPerSecond());
+                    if (!rateLimiterService.tryAcquire(limiterKey, capacity, refillRate)) {
+                        response.setHeader("Retry-After", "1");
+                        writeError(response, 429,
+                            "RATE_LIMITED", "API key request rate exceeded");
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        new ApiKeyPrincipal(key.getId(), key.getProjectId()),
+                        new ApiKeyPrincipal(key.getId(), key.getProjectId(), key.getOrganizationId()),
                         null,
                         List.of(() -> "ROLE_INGESTION_CLIENT")
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 } else {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("{\"error\": \"Invalid or revoked API key\"}");
+                    writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        "UNAUTHORIZED", "Invalid or revoked API key");
                     return;
                 }
             } else {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\": \"Missing X-API-Key header\"}");
+                writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "UNAUTHORIZED", "Missing X-API-Key header");
                 return;
             }
         }
@@ -56,5 +75,15 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    public record ApiKeyPrincipal(String apiKeyId, String projectId) {}
+    private void writeError(HttpServletResponse response, int status, String code, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
+    }
+
+    public record ApiKeyPrincipal(String apiKeyId, String projectId, String organizationId) {
+        public ApiKeyPrincipal(String apiKeyId, String projectId) {
+            this(apiKeyId, projectId, null);
+        }
+    }
 }

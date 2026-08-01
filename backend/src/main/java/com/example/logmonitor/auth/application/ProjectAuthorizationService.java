@@ -62,12 +62,17 @@ public class ProjectAuthorizationService {
         if (role == null) {
             return false;
         }
-        return permission == Permission.READ || role != Role.VIEWER;
+        return switch (permission) {
+            case READ -> true;
+            case WRITE -> role != Role.VIEWER;
+            case MANAGE_API_KEYS -> role == Role.ORGANIZATION_ADMIN;
+        };
     }
 
     public enum Permission {
         READ,
-        WRITE
+        WRITE,
+        MANAGE_API_KEYS
     }
 
     public record AuthorizationDecision(boolean allowed, Failure failure) {

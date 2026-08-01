@@ -35,6 +35,11 @@ ingestion:
     max-wait-ms: ${INGESTION_BATCH_MAX_WAIT_MS:500}
   enqueue-timeout-ms: ${INGESTION_ENQUEUE_TIMEOUT_MS:5}
 
+api-key:
+  requests-per-second: ${API_KEY_REQUESTS_PER_SECOND:100}
+  burst-capacity: ${API_KEY_BURST_CAPACITY:200}
+  last-used-update-interval-seconds: ${API_KEY_LAST_USED_UPDATE_INTERVAL_SECONDS:60}
+
 livetail:
   max-connections-per-user: ${LIVETAIL_MAX_CONNECTIONS_PER_USER:3}
   max-connections-per-ip: ${LIVETAIL_MAX_CONNECTIONS_PER_IP:20}
