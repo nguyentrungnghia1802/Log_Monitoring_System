@@ -111,14 +111,17 @@ Prove which reported capabilities are actually implemented and passing.
 - [x] Verify current Node.js, React, Vite, and TypeScript setup.
 - [x] Verify MongoDB and Testcontainers versions.
 - [x] Verify all environment-property names match `.env.example` and Spring configuration.
-- [~] Verify no real secret exists in source, history, fixtures, logs, or screenshots.
+- [x] Verify no real secret exists in source, history, fixtures, logs, or screenshots.
 - [x] Map every implemented feature to its canonical requirement and API contract.
 
 Evidence: `docs/project/FEATURE_MATRIX.md`, `backend/build.gradle`,
 `frontend/package.json`, `.env.example`, `compose.yaml`, and the controller/source
 tree audit on 2026-08-02. The secret scan found committed development defaults
 (`example_password`, placeholder JWT secret) and the static `demo-api-key`
-fallback was removed; production-secret clearance remains incomplete.
+fallback was removed. A 2026-08-18 all-revision high-confidence credential
+pattern scan found no AWS/GitHub/OpenAI/Slack token or private-key material;
+remaining password/secret matches are configuration keys, placeholders, tests,
+or credential-handling code rather than deployable credentials.
 
 Build evidence: `backend/:build` and the multi-module `backend/assemble` pass
 after configuring the Spring Boot starter module to publish a library JAR.
@@ -283,7 +286,7 @@ At minimum, define and enforce capabilities equivalent to:
 - [~] Ensure request-body `organizationId`, `projectId`, or role never grants authority.
 - [x] Restrict project creation/update/deactivation to allowed roles.
 - [x] Restrict API-key creation/rotation/revocation.
-- [ ] Restrict retention changes.
+- [x] Restrict retention changes.
 - [x] Restrict alert-rule mutation.
 - [x] Restrict acknowledgement and notification retry.
 - [x] Return forbidden/not-found semantics without revealing foreign tenant data.
@@ -319,6 +322,8 @@ controller test covers operator rejection and foreign-organization project
 isolation. API-key management controllers and cross-project tests are covered
 by the B3 evidence below. WebSocket authorization is covered by the B4
 interceptor/registry/publisher tests below.
+Retention changes require current-organization `MANAGE` permission and
+`ProjectControllerTest` verifies a project operator cannot mutate them.
 Validation: backend `./gradlew :test --no-parallel` passed all 20 tests,
 `./gradlew :build --no-parallel` and multi-module `./gradlew assemble` passed;
 frontend lint, typecheck, test, and build passed with existing warnings only.
@@ -591,17 +596,27 @@ the in-memory access JWT to the lifecycle calls.
 
 ### Tasks
 
-- [ ] show project default retention;
-- [ ] show per-level overrides;
-- [ ] validate ranges;
-- [ ] show estimated storage implications where practical;
-- [ ] explain TTL cleanup is asynchronous;
-- [ ] audit changes;
-- [ ] ensure updates affect only future event `expireAt` unless a backfill feature is explicitly designed.
+- [x] show project default retention;
+- [x] show per-level overrides;
+- [x] validate ranges;
+- [x] show estimated storage implications where practical;
+- [x] explain TTL cleanup is asynchronous;
+- [x] audit changes;
+- [x] ensure updates affect only future event `expireAt` unless a backfill feature is explicitly designed.
 
 ### Exit criteria
 
-- [ ] Retention policy is understandable and configurable without misleading users about exact deletion time.
+- [x] Retention policy is understandable and configurable without misleading users about exact deletion time.
+
+Evidence (2026-08-18): the authenticated project administration UI displays
+the stored default and DEBUG/INFO/WARN/ERROR/FATAL overrides, accepts blank
+override inheritance, and enforces whole-day values from 1 through 3650 before
+submission. It presents a clearly labeled event-day planning ratio rather than
+a false byte estimate, explains asynchronous MongoDB TTL cleanup, and states
+that updates affect future events without rewriting existing `expireAt` values.
+The existing backend command validates the same ranges, updates the in-process
+resolver, and writes a `PROJECT_RETENTION` audit event. Component and controller
+tests cover the UI payload and operator mutation rejection.
 
 ---
 

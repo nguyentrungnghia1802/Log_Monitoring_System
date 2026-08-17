@@ -19,6 +19,14 @@ function formatTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString() : 'No events yet'
 }
 
+const RETENTION_LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as const
+
+function validRetentionDays(value: string, optional = false) {
+  if (optional && value === '') return true
+  const days = Number(value)
+  return Number.isInteger(days) && days >= 1 && days <= 3650
+}
+
 export function ProjectsPage() {
   const queryClient = useQueryClient()
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -30,6 +38,7 @@ export function ProjectsPage() {
   })
   const [editForm, setEditForm] = useState({ name: '', environments: '' })
   const [retentionDays, setRetentionDays] = useState('7')
+  const [retentionOverrides, setRetentionOverrides] = useState<Record<string, string>>({})
 
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -48,6 +57,9 @@ export function ProjectsPage() {
     if (selectedProject) {
       setEditForm({ name: selectedProject.name, environments: selectedProject.environments.join(', ') })
       setRetentionDays(String(selectedProject.retention.defaultDays))
+      setRetentionOverrides(Object.fromEntries(
+        RETENTION_LEVELS.map((level) => [level, selectedProject.retention.levelOverrides[level]?.toString() ?? '']),
+      ))
     }
   }, [selectedProject])
 
@@ -76,7 +88,11 @@ export function ProjectsPage() {
   const retentionMutation = useMutation({
     mutationFn: () => updateProjectRetention(selectedProject!.id, {
       defaultDays: Number(retentionDays),
-      levelOverrides: selectedProject!.retention.levelOverrides,
+      levelOverrides: Object.fromEntries(
+        RETENTION_LEVELS
+          .filter((level) => retentionOverrides[level] !== '')
+          .map((level) => [level, Number(retentionOverrides[level])]),
+      ),
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
@@ -117,6 +133,9 @@ export function ProjectsPage() {
   }
 
   const projects = projectsQuery.data ?? []
+  const retentionValid = validRetentionDays(retentionDays)
+    && RETENTION_LEVELS.every((level) => validRetentionDays(retentionOverrides[level] ?? '', true))
+  const storageWindowRatio = validRetentionDays(retentionDays) ? Number(retentionDays) / 7 : null
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-6">
       <div>
@@ -190,11 +209,24 @@ export function ProjectsPage() {
             </form>
             <form onSubmit={(event) => { event.preventDefault(); retentionMutation.mutate() }} className="space-y-4">
               <h3 className="font-semibold text-slate-900">Retention</h3>
-              <p className="text-xs text-slate-500">TTL cleanup in MongoDB is asynchronous; this setting applies to future ingested events.</p>
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+                MongoDB TTL cleanup is asynchronous, so expiry is not exact to the second. Changes apply only to future ingested events; existing <code>expireAt</code> values are not backfilled.
+              </div>
               <label className="block text-sm font-medium text-slate-700">Default retention (days)
                 <input required min={1} max={3650} type="number" value={retentionDays} onChange={(event) => setRetentionDays(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </label>
-              <button disabled={retentionMutation.isPending} className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{retentionMutation.isPending ? 'Saving…' : 'Save retention'}</button>
+              <fieldset>
+                <legend className="text-sm font-medium text-slate-700">Per-level overrides (days)</legend>
+                <p className="mt-1 text-xs text-slate-500">Leave blank to use the project default.</p>
+                <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {RETENTION_LEVELS.map((level) => <label key={level} className="text-xs font-semibold text-slate-600">{level}
+                    <input aria-label={`${level} retention days`} min={1} max={3650} type="number" value={retentionOverrides[level] ?? ''} onChange={(event) => setRetentionOverrides({ ...retentionOverrides, [level]: event.target.value })} placeholder={retentionDays} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" />
+                  </label>)}
+                </div>
+              </fieldset>
+              {storageWindowRatio !== null && <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">At a steady event rate, the default policy retains roughly <strong>{storageWindowRatio.toFixed(1)}×</strong> the event-days of a 7-day policy. This is a planning ratio, not a byte estimate.</p>}
+              {!retentionValid && <p role="alert" className="text-sm text-rose-700">Retention values must be whole days from 1 to 3650.</p>}
+              <button disabled={retentionMutation.isPending || !retentionValid} className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{retentionMutation.isPending ? 'Saving…' : 'Save retention'}</button>
               {retentionMutation.error && <p className="text-sm text-rose-700">{retentionMutation.error.message}</p>}
             </form>
           </div>
