@@ -15,7 +15,7 @@ Current implementation note (2026-08-02): management routes are being delivered
 incrementally. Logs, analytics, alert rules, alert occurrences, API-key lifecycle,
 the current-organization/user-management route family, and project management
 now have controllers and tests. The API-key management UI is available at
-`/api-keys`; the dedicated retention UI remains planned in C4.
+`/api-keys`; retention editing is integrated into the project administration UI.
 
 ---
 
@@ -439,9 +439,9 @@ user/IP has a configured connection/subscription limit. The outbound executor
 and WebSocket send buffer are bounded; saturated sends are counted as dropped
 live-tail events and a client that exceeds transport send limits is disconnected.
 
-The React page keeps a bounded 200-event browser history. It reads the JWT from
-`localStorage['log-monitoring.access-token']`; no token is placed in the WebSocket
-URL.
+The React page keeps a bounded 200-event browser history. It reads the short
+access JWT from the in-memory auth session; no token is placed in browser
+storage or the WebSocket URL.
 
 Do not expose a destination where the browser can subscribe to an arbitrary project ID without server validation.
 

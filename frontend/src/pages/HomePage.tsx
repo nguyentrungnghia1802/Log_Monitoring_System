@@ -4,14 +4,13 @@ export function HomePage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-8 rounded-3xl border border-slate-200 bg-white/80 p-10 shadow-xl backdrop-blur">
         <div className="space-y-4">
           <span className="inline-flex items-center rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700">
-            Phase 0 foundation
+            Centralized observability
           </span>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
             Centralized Log Monitoring System
           </h1>
           <p className="max-w-3xl text-lg text-slate-600">
-            A clean foundation for the modular monolith: React + Vite frontend, Spring Boot backend, MongoDB,
-            health endpoints, and test infrastructure ready for the next phases.
+            Ingest, search, stream, and alert on structured application events through one secure management console.
           </p>
         </div>
 

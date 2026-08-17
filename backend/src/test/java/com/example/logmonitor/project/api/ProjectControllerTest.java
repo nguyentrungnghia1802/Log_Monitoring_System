@@ -208,6 +208,14 @@ class ProjectControllerTest {
                     {"name":"Should Fail"}
                     """))
             .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/v1/projects/" + existingProject.getId() + "/retention")
+                .header("Authorization", "Bearer " + operatorToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"defaultDays":30,"levelOverrides":{"ERROR":90}}
+                    """))
+            .andExpect(status().isForbidden());
     }
 
     @Test

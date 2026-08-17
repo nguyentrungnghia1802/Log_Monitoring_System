@@ -1,13 +1,13 @@
 # Centralized Log Monitoring System
 
-This repository contains the initial foundation for a centralized log monitoring platform built as a modular monolith using Java 21, Spring Boot 3.x, MongoDB, and a React + Vite frontend.
+This repository contains a working centralized log monitoring platform built as a modular monolith using Java 21, Spring Boot 3.x, MongoDB, and a React + Vite frontend.
 
 ## Overview
 
 The current baseline includes the repository foundation plus:
 
-- backend skeleton with Spring Boot, security, validation, Actuator, WebSocket, and MongoDB support;
-- frontend skeleton with React, TypeScript, Vite, TanStack Query, Router, and Tailwind CSS;
+- Spring Boot backend with ingestion, persistence, search, analytics, alerting, management security, Actuator, WebSocket, and MongoDB;
+- React management console with login/session restoration, project and organization administration, Log Explorer, analytics, Live Tail, alerts, and API-key lifecycle;
 - organization/user management and organization-scoped project administration;
 - project settings, retention configuration, activity/service summaries, soft deactivation, and audited management APIs;
 - API-key inventory and safe create/rotate/revoke management with one-time secret display;
