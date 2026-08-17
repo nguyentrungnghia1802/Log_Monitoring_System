@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Client, type StompSubscription } from '@stomp/stompjs'
 import type { LogEvent } from '../../types/log'
+import { getAccessToken } from '../../auth/authToken'
 
 export function LiveTailPage() {
     const [projectId] = useState('demo-project')
@@ -22,9 +23,9 @@ export function LiveTailPage() {
     }, [paused])
 
     useEffect(() => {
-        const accessToken = window.localStorage.getItem('log-monitoring.access-token')
+        const accessToken = getAccessToken()
         if (!accessToken) {
-            setConnectionError('Sign in and store an access token before opening Live Tail.')
+            setConnectionError('Your session is not available. Sign in again before opening Live Tail.')
             return
         }
 
@@ -66,8 +67,7 @@ export function LiveTailPage() {
                 setConnected(false)
                 setConnectionError('Live Tail WebSocket connection failed.')
             },
-            onStompError: (frame) => {
-                console.error('STOMP error', frame)
+            onStompError: () => {
                 setConnected(false)
                 setConnectionError('Live Tail subscription was rejected by the server.')
             },

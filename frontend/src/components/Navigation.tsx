@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../auth/authContextValue'
 
 export function Navigation() {
     const location = useLocation()
+    const { user, logout } = useAuth()
 
     const navItems = [
         { label: 'Overview', path: '/' },
@@ -50,6 +52,8 @@ export function Navigation() {
                         <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         Project Management
                     </span>
+                    <span className="text-sm font-medium text-slate-600">{user?.email}</span>
+                    <button type="button" onClick={() => void logout()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Sign out</button>
                 </div>
             </div>
         </header>

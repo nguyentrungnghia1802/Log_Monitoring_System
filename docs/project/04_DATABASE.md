@@ -20,6 +20,7 @@ The application uses MongoDB intentionally to learn document modeling, compound 
 | --- | --- |
 | `organizations` | Tenant settings |
 | `users` | Management user identity/profile |
+| `auth_sessions` | Hashed, revocable management refresh sessions |
 | `project_memberships` | Project authorization and legacy organization-admin compatibility |
 | `projects` | Monitored project settings |
 | `api_keys` | Hashed ingestion credentials and scope |
@@ -55,10 +56,29 @@ does not require a manual seed edit.
 ### Management user fields
 
 `users` retains the existing unique username and organization scope and now
-stores `organizationRole`, `active`, and `updatedAt`. `passwordHash` is never
+stores `organizationRole`, `active`, and `updatedAt`. Email and username are
+unique indexed login identities. `passwordHash` is never
 returned by management DTOs. `organizationId` is indexed for membership lists;
 an inactive or removed user cannot authenticate into organization APIs. The
 organization role is `ORGANIZATION_ADMIN`, `PROJECT_OPERATOR`, or `VIEWER`.
+
+### `auth_sessions` document
+
+```json
+{
+  "_id": "ObjectId",
+  "userId": "ObjectId",
+  "organizationId": "ObjectId",
+  "refreshTokenHash": "SHA-256 hex",
+  "createdAt": "ISODate",
+  "expiresAt": "ISODate",
+  "revokedAt": null
+}
+```
+
+Only a hash of the random refresh token is stored. `refreshTokenHash` is unique,
+`userId` is indexed, and `expiresAt` has a TTL index. Revoked records remain
+until expiration to preserve replay rejection without retaining raw secrets.
 
 ---
 

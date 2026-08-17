@@ -99,6 +99,9 @@ public class OrganizationManagementService {
         if (userRepository.findByUsername(normalizedUsername).isPresent()) {
             throw conflict("USERNAME_EXISTS", "Username already exists");
         }
+        if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
+            throw conflict("EMAIL_EXISTS", "Email already exists");
+        }
 
         User user = new User(
             null,
@@ -294,7 +297,7 @@ public class OrganizationManagementService {
         if (email == null || email.isBlank() || email.trim().length() > MAX_EMAIL_LENGTH || !email.contains("@")) {
             throw validation("INVALID_EMAIL", "A valid email is required");
         }
-        return email.trim();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private void validatePassword(String password) {

@@ -14,6 +14,7 @@ public class User {
     @Indexed(unique = true)
     private String username;
 
+    @Indexed(unique = true, sparse = true)
     private String email;
     private String passwordHash;
     @Indexed

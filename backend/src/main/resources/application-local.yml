@@ -7,3 +7,13 @@ logging:
   level:
     root: INFO
     com.example.logmonitor: DEBUG
+
+local-bootstrap:
+  admin:
+    enabled: ${LOCAL_BOOTSTRAP_ADMIN_ENABLED:false}
+    organization-id: ${LOCAL_BOOTSTRAP_ORGANIZATION_ID:local-org}
+    organization-slug: ${LOCAL_BOOTSTRAP_ORGANIZATION_SLUG:local}
+    organization-name: ${LOCAL_BOOTSTRAP_ORGANIZATION_NAME:Local Development}
+    username: ${LOCAL_BOOTSTRAP_ADMIN_USERNAME:local-admin}
+    email: ${LOCAL_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${LOCAL_BOOTSTRAP_ADMIN_PASSWORD:}

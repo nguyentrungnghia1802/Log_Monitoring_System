@@ -2,6 +2,8 @@ package com.example.logmonitor.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,24 +47,29 @@ public class SecurityConfig {
             .anonymous(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint((request, response, exception) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                .authenticationEntryPoint((request, response, exception) -> writeError(
+                    response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHENTICATED", "Authentication required"))
                 .accessDeniedHandler((request, response, exception) -> {
                     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
                     boolean unauthenticated = authentication == null
                         || !authentication.isAuthenticated()
                         || "anonymousUser".equals(authentication.getPrincipal());
-                    response.sendError(unauthenticated
-                        ? HttpServletResponse.SC_UNAUTHORIZED
-                        : HttpServletResponse.SC_FORBIDDEN);
+                    if (unauthenticated) {
+                        writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                            "UNAUTHENTICATED", "Authentication required");
+                    } else {
+                        writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                            "FORBIDDEN", "Access denied");
+                    }
                 }))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/prometheus", "/actuator/info").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                .requestMatchers("/api/v1/auth/**").authenticated()
                 .requestMatchers("/ws-logs/**").permitAll() // Handled via StompAuthChannelInterceptor
                 .requestMatchers("/api/v1/ingest/**").permitAll() // Handled via ApiKeyAuthenticationFilter
-                .requestMatchers("/api/v1/system/**").authenticated()
-                .requestMatchers("/api/v1/**").permitAll() // Handled via ProjectSecurityInterceptor & JwtAuthenticationFilter fallback
+                .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -87,5 +94,18 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private static void writeError(
+        HttpServletResponse response,
+        int status,
+        String code,
+        String message
+    ) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(
+            "{\"success\":false,\"error\":{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}}"
+        );
     }
 }

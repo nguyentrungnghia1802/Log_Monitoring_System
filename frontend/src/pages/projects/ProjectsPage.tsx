@@ -7,7 +7,6 @@ import {
   updateProject,
   updateProjectRetention,
 } from '../../services/projectApi'
-import type { Project } from '../../types/project'
 
 function environmentList(value: string): string[] {
   return value

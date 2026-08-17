@@ -1,6 +1,6 @@
 import type { LogSearchParams, LogSearchResponse, LogEvent } from '../types/log'
-
-const API_BASE = '/api/v1'
+import type { AlertOccurrence, AlertRule } from '../types/alert'
+import { apiRequest } from './http'
 
 export async function fetchLogs(params: LogSearchParams): Promise<LogSearchResponse> {
     const query = new URLSearchParams()
@@ -17,64 +17,43 @@ export async function fetchLogs(params: LogSearchParams): Promise<LogSearchRespo
     if (params.cursor) query.set('cursor', params.cursor)
     if (params.limit) query.set('limit', params.limit.toString())
 
-    const res = await fetch(`${API_BASE}/projects/${params.projectId}/logs?${query.toString()}`)
-    if (!res.ok) {
-        throw new Error(`Failed to fetch logs: ${res.statusText}`)
-    }
-    return res.json()
+    return apiRequest<LogSearchResponse>(`/projects/${params.projectId}/logs?${query.toString()}`)
 }
 
 export async function fetchLogById(projectId: string, id: string): Promise<LogEvent> {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/logs/${id}`)
-    if (!res.ok) {
-        throw new Error(`Failed to fetch log ${id}: ${res.statusText}`)
-    }
-    return res.json()
+    return apiRequest<LogEvent>(`/projects/${projectId}/logs/${id}`)
 }
 
-export async function fetchAlertRules(projectId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alert-rules`)
-    if (!res.ok) throw new Error(`Failed to fetch alert rules: ${res.statusText}`)
-    return res.json()
+export async function fetchAlertRules(projectId: string): Promise<AlertRule[]> {
+    return apiRequest<AlertRule[]>(`/projects/${projectId}/alert-rules`)
 }
 
-export async function createAlertRule(projectId: string, rule: any) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alert-rules`, {
+export async function createAlertRule(projectId: string, rule: Partial<AlertRule>): Promise<AlertRule> {
+    return apiRequest<AlertRule>(`/projects/${projectId}/alert-rules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rule)
     })
-    if (!res.ok) throw new Error(`Failed to create alert rule: ${res.statusText}`)
-    return res.json()
 }
 
-export async function toggleAlertRule(projectId: string, ruleId: string, enable: boolean) {
+export async function toggleAlertRule(projectId: string, ruleId: string, enable: boolean): Promise<AlertRule> {
     const action = enable ? 'enable' : 'disable'
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alert-rules/${ruleId}/${action}`, { method: 'POST' })
-    if (!res.ok) throw new Error(`Failed to toggle alert rule: ${res.statusText}`)
-    return res.json()
+    return apiRequest<AlertRule>(`/projects/${projectId}/alert-rules/${ruleId}/${action}`, { method: 'POST' })
 }
 
 export async function deleteAlertRule(projectId: string, ruleId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alert-rules/${ruleId}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error(`Failed to delete alert rule: ${res.statusText}`)
+    return apiRequest<void>(`/projects/${projectId}/alert-rules/${ruleId}`, { method: 'DELETE' })
 }
 
-export async function fetchAlerts(projectId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alerts`)
-    if (!res.ok) throw new Error(`Failed to fetch alerts: ${res.statusText}`)
-    return res.json()
+export async function fetchAlerts(projectId: string): Promise<AlertOccurrence[]> {
+    return apiRequest<AlertOccurrence[]>(`/projects/${projectId}/alerts`)
 }
 
-export async function acknowledgeAlert(projectId: string, alertId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alerts/${alertId}/acknowledge`, { method: 'POST' })
-    if (!res.ok) throw new Error(`Failed to acknowledge alert: ${res.statusText}`)
-    return res.json()
+export async function acknowledgeAlert(projectId: string, alertId: string): Promise<AlertOccurrence> {
+    return apiRequest<AlertOccurrence>(`/projects/${projectId}/alerts/${alertId}/acknowledge`, { method: 'POST' })
 }
 
-export async function retryAlertNotification(projectId: string, alertId: string) {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/alerts/${alertId}/retry-notification`, { method: 'POST' })
-    if (!res.ok) throw new Error(`Failed to retry notification: ${res.statusText}`)
-    return res.json()
+export async function retryAlertNotification(projectId: string, alertId: string): Promise<AlertOccurrence> {
+    return apiRequest<AlertOccurrence>(`/projects/${projectId}/alerts/${alertId}/retry-notification`, { method: 'POST' })
 }
 

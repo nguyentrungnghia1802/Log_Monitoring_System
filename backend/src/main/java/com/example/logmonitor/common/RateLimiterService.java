@@ -9,7 +9,7 @@ public class RateLimiterService {
 
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
 
-    public boolean tryAcquire(String key, int capacity, int tokensPerSecond) {
+    public boolean tryAcquire(String key, int capacity, double tokensPerSecond) {
         long now = System.currentTimeMillis();
         TokenBucket bucket = buckets.compute(key, (k, existing) -> {
             if (existing == null) {
@@ -29,11 +29,11 @@ public class RateLimiterService {
 
     private static class TokenBucket {
         private final int capacity;
-        private final int tokensPerSecond;
+        private final double tokensPerSecond;
         private double tokens;
         private long lastRefillMs;
 
-        public TokenBucket(int capacity, int tokensPerSecond, long now) {
+        public TokenBucket(int capacity, double tokensPerSecond, long now) {
             this.capacity = capacity;
             this.tokensPerSecond = tokensPerSecond;
             this.tokens = capacity;

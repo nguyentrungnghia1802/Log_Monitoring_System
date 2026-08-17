@@ -1,6 +1,5 @@
 import type { AnalyticsSearchParams, AnalyticsSummaryResponse, AnalyticsHistogramResponse } from '../types/analytics'
-
-const API_BASE = '/api/v1'
+import { apiRequest } from './http'
 
 export async function fetchAnalyticsSummary(params: AnalyticsSearchParams): Promise<AnalyticsSummaryResponse> {
     const query = new URLSearchParams()
@@ -9,11 +8,7 @@ export async function fetchAnalyticsSummary(params: AnalyticsSearchParams): Prom
     if (params.environment) query.set('environment', params.environment)
     if (params.service) query.set('service', params.service)
 
-    const res = await fetch(`${API_BASE}/projects/${params.projectId}/analytics/summary?${query.toString()}`)
-    if (!res.ok) {
-        throw new Error(`Failed to fetch analytics summary: ${res.statusText}`)
-    }
-    return res.json()
+    return apiRequest<AnalyticsSummaryResponse>(`/projects/${params.projectId}/analytics/summary?${query.toString()}`)
 }
 
 export async function fetchAnalyticsHistogram(params: AnalyticsSearchParams): Promise<AnalyticsHistogramResponse> {
@@ -24,9 +19,5 @@ export async function fetchAnalyticsHistogram(params: AnalyticsSearchParams): Pr
     if (params.environment) query.set('environment', params.environment)
     if (params.service) query.set('service', params.service)
 
-    const res = await fetch(`${API_BASE}/projects/${params.projectId}/analytics/histogram?${query.toString()}`)
-    if (!res.ok) {
-        throw new Error(`Failed to fetch analytics histogram: ${res.statusText}`)
-    }
-    return res.json()
+    return apiRequest<AnalyticsHistogramResponse>(`/projects/${params.projectId}/analytics/histogram?${query.toString()}`)
 }

@@ -281,8 +281,13 @@ V1 can begin with in-process evaluation. Horizontal scaling requires a later own
 ### Management users
 
 - email/password;
-- password hash;
-- short-lived access JWT;
+- BCrypt password hash;
+- 15-minute access JWT held only in frontend memory;
+- opaque 256-bit refresh token stored only as a hashed `auth_sessions` record
+  and an HttpOnly SameSite browser cookie;
+- refresh rotation revokes the previous session, and logout revokes the current
+  session so its access JWT also stops validating;
+- generic credential failures and per-identity/client login rate limiting;
 - authorization by organization/project membership through the centralized
   `ProjectAuthorizationService`;
 - every project-scoped resource query carries the authorized `projectId`,

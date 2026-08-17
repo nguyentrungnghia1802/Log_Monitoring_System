@@ -1,12 +1,12 @@
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-02.
+Last reviewed: 2026-08-18.
 
-The C1 organization/user management slice, C2 project management slice, and C3
-API-key management UI are implemented on the current feature line. C1 still
-has an explicit frontend login/session-bootstrap gap; C3 frontend toolchain
-validation is pending in this Windows workspace, and C4 retention UI remains
-the next product-administration slice.
+The B1 management-authentication and C1–C3 administration slices are
+implemented and validated. The browser now restores an HttpOnly refresh-cookie
+session, holds the short access JWT only in memory, protects management routes,
+and supports logout. A guarded local-profile bootstrap creates the first admin
+without direct MongoDB edits. C4 remains the next product-administration slice.
 
 ## 1. Delivery roadmap
 
