@@ -26,6 +26,17 @@ management:
 server:
   port: ${SERVER_PORT:8080}
 
+jwt:
+  secret: ${JWT_SECRET:SuperSecretJwtSigningKeyWithMinimum256BitsLengthForHmacSha256!}
+  expiration-ms: ${JWT_EXPIRATION_MS:900000}
+
+auth:
+  login-burst-capacity: ${AUTH_LOGIN_BURST_CAPACITY:5}
+  login-window-seconds: ${AUTH_LOGIN_WINDOW_SECONDS:60}
+  refresh-token-expiration-seconds: ${AUTH_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
+  refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
+  refresh-cookie-same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Strict}
+
 ingestion:
   queue:
     capacity: ${INGESTION_QUEUE_CAPACITY:50000}

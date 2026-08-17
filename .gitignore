@@ -7,6 +7,7 @@ backend/bin/
 build/
 *.class
 *.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
 *.war
 
 # Node / Frontend

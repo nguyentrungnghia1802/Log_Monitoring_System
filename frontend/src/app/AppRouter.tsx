@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { Navigation } from '../components/Navigation'
+import { ProtectedRoute } from '../auth/ProtectedRoute'
+import { LoginPage } from '../pages/auth/LoginPage'
 import { HomePage } from '../pages/HomePage'
 import { LogExplorerPage } from '../pages/logs/LogExplorerPage'
 import { AnalyticsPage } from '../pages/analytics/AnalyticsPage'
@@ -12,10 +13,9 @@ import { ApiKeysPage } from '../pages/apikeys/ApiKeysPage'
 
 export function AppRouter() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navigation />
-      <div className="flex-1">
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<ProtectedRoute />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/logs" element={<LogExplorerPage />} />
           <Route path="/dashboard" element={<AnalyticsPage />} />
@@ -25,9 +25,8 @@ export function AppRouter() {
           <Route path="/organization" element={<OrganizationPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/api-keys" element={<ApiKeysPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
         </Routes>
-      </div>
-    </div>
   )
 }

@@ -89,9 +89,18 @@ Status: `503`.
 | POST | `/api/v1/auth/logout` | Authenticated | End session |
 | GET | `/api/v1/auth/me` | Authenticated | Current user and memberships |
 
-The current backend implementation exposes `POST /api/v1/auth/register` and
-`POST /api/v1/auth/login`. Refresh, logout, and `/me` remain planned; a missing
-or invalid management token is rejected with `401`.
+Login accepts `email` and `password` (legacy `username` remains accepted during
+migration). It returns a 15-minute access JWT and current user/project access.
+The opaque refresh token is returned only as the `lm_refresh` HttpOnly,
+SameSite cookie; it is never included in JSON or browser storage. Refresh
+rotates both the cookie and server-side session, invalidating the previous
+access/refresh pair. Logout revokes that session and clears the cookie.
+
+Unknown email, wrong password, and disabled account all return the same
+`401 INVALID_CREDENTIALS` response. Repeated attempts are token-bucket limited
+by a hash of identity and client address and return `429 LOGIN_RATE_LIMITED`.
+There is no public registration endpoint; organization administrators create
+additional users through the organization API.
 
 ## 4.1 Project authorization
 

@@ -222,31 +222,45 @@ intentionally left as an open gap.
 
 ### Tasks
 
-- [ ] Verify email/password login is implemented.
-- [ ] Use a secure password hash.
-- [ ] Validate inactive/disabled user behavior.
-- [ ] Implement short-lived access tokens.
-- [ ] Decide and document refresh/session strategy.
-- [ ] Implement logout/revocation behavior.
-- [ ] Prevent account enumeration in authentication errors.
-- [ ] Add login rate limiting.
-- [ ] Add authentication audit events where appropriate.
-- [ ] Ensure frontend never stores long-lived secrets insecurely.
+- [x] Verify email/password login is implemented.
+- [x] Use a secure password hash.
+- [x] Validate inactive/disabled user behavior.
+- [x] Implement short-lived access tokens.
+- [x] Decide and document refresh/session strategy.
+- [x] Implement logout/revocation behavior.
+- [x] Prevent account enumeration in authentication errors.
+- [x] Add login rate limiting.
+- [x] Add authentication audit events where appropriate.
+- [x] Ensure frontend never stores long-lived secrets insecurely.
 
 ### Tests
 
-- [ ] valid login;
-- [ ] invalid password;
-- [ ] disabled account;
-- [ ] expired token;
-- [ ] malformed token;
-- [ ] logout/revocation;
-- [ ] rate-limit behavior.
+- [x] valid login;
+- [x] invalid password;
+- [x] disabled account;
+- [x] expired token;
+- [x] malformed token;
+- [x] logout/revocation;
+- [x] rate-limit behavior.
 
 ### Exit criteria
 
-- [ ] Every management endpoint is protected except explicitly public health/login routes.
-- [ ] Authentication errors expose no sensitive details.
+- [x] Every management endpoint is protected except explicitly public health/login/refresh routes.
+- [x] Authentication errors expose no sensitive details.
+
+Evidence (2026-08-18): `AuthenticationService` implements case-insensitive
+email/legacy-username login, BCrypt verification, generic invalid credential
+responses, active-account checks, token-bucket login throttling, and safe audit
+actions. Access JWTs default to 15 minutes. A random opaque refresh token is
+stored only as a SHA-256 hash in TTL-indexed `auth_sessions` and sent as an
+HttpOnly SameSite cookie; refresh rotates the session and logout revokes it,
+which also invalidates its access JWT. `SecurityConfig` requires JWT auth for
+all management APIs except login/refresh and public health/ingestion boundaries.
+The React `AuthProvider`, protected router, login page, shared authorized HTTP
+client, and Live Tail client keep access tokens only in process memory and
+restore sessions through the cookie. `AuthControllerTest`, `JwtServiceTest`,
+and `AuthFlow.test.tsx` cover the listed paths. Backend `:test` and frontend
+lint/typecheck/test/build gates passed on this slice.
 
 ---
 
@@ -477,7 +491,7 @@ worker batch persistence, and documented pre-MongoDB loss window are unchanged.
 
 ### Exit criteria
 
-- [~] An organization can be administered without direct MongoDB edits or seed changes.
+- [x] An organization can be administered without direct MongoDB edits or seed changes.
 
 Evidence (2026-08-02): `OrganizationController`,
 `OrganizationManagementService`, `OrganizationAuthorizationService`, and the
@@ -490,12 +504,10 @@ audit record without passwords. `OrganizationPage` and
 `organizationApi.ts` provide settings/member management with loading, empty,
 error/retry, and confirmation states. `OrganizationManagementServiceTest` and
 `OrganizationControllerTest` cover service and Mongo-backed HTTP behavior;
-`OrganizationPage.test.tsx` covers the empty state. The remaining gap is the
-management login/session bootstrap UI: the page uses an existing
-`localStorage.accessToken`, so a complete first-time browser onboarding flow is
-not yet claimed. Final validation: backend Gradle test produced 69 tests in
-22 suites with 0 failures/errors/skips; frontend typecheck, lint, 2 Vitest
-tests, and production build passed.
+`OrganizationPage.test.tsx` covers the empty state. The B1 login/session UI now
+protects the console, and an explicitly enabled local-profile bootstrap creates
+the first organization administrator idempotently without a MongoDB edit. See
+the B1 evidence for the current validation gates.
 
 ---
 
@@ -513,13 +525,12 @@ tests, and production build passed.
 - [x] retention configuration;
 - [x] service discovery summary;
 - [x] recent ingestion summary;
-- [~] project-management frontend;
+- [x] project-management frontend;
 - [x] audit project changes.
 
 ### Exit criteria
 
-- [~] A new monitored application can be onboarded through project APIs/UI;
-  API-key UI and frontend toolchain validation remain in C3/CI.
+- [x] A new monitored application can be onboarded through project APIs/UI.
 
 Evidence (2026-08-02): Project, ProjectRepository,
 ProjectManagementService, ProjectController, and
@@ -532,9 +543,8 @@ PROJECT_RETENTION audit events. ProjectManagementServiceTest and
 ProjectControllerTest cover validation, role boundaries, foreign-organization
 isolation, Mongo activity summaries, audit records, and inactive ingestion.
 The ProjectsPage/projectApi.ts implementation includes loading, empty,
-error/retry, edit, retention, and deactivation-confirmation states, but
-npm run lint, npm run typecheck, npm run test, and npm run build could not be
-rerun in this environment because Node/npm is not available on PATH.
+error/retry, edit, retention, and deactivation-confirmation states. Frontend
+lint, typecheck, Vitest, and production build pass in the current workspace.
 Backend targeted validation passed with:
 backend/gradlew.bat test --tests
 com.example.logmonitor.project.application.ProjectManagementServiceTest
@@ -548,19 +558,19 @@ com.example.logmonitor.auth.config.ApiKeyAuthenticationFilterTest -x
 
 ### Tasks
 
-- [~] list key metadata;
-- [~] create key;
-- [~] one-time secret display;
-- [~] copy confirmation and warning;
-- [~] rotate key;
-- [~] revoke key;
-- [~] show last-used timestamp and status;
-- [~] never retain raw key in browser storage;
-- [~] confirmation for destructive actions.
+- [x] list key metadata;
+- [x] create key;
+- [x] one-time secret display;
+- [x] copy confirmation and warning;
+- [x] rotate key;
+- [x] revoke key;
+- [x] show last-used timestamp and status;
+- [x] never retain raw key in browser storage;
+- [x] confirmation for destructive actions.
 
 ### Exit criteria
 
-- [~] Project admins can complete a safe API-key lifecycle without database access.
+- [x] Project admins can complete a safe API-key lifecycle without database access.
 
 Evidence (2026-08-02): `frontend/src/pages/apikeys/ApiKeysPage.tsx` and
 `apiKeyApi.ts` implement project selection, metadata-only inventory, create,
@@ -571,9 +581,9 @@ or the metadata query cache. `ApiKeysPage.test.tsx` covers metadata leakage,
 one-time display/copy/dismiss, browser-storage safety, and confirmation gates.
 The backend Phase9 security suite passed 12/12 tests after adding the
 organization-document boundary check. The full backend application test passed
-77/77 tests in 24 suites. Frontend lint/typecheck/Vitest/build remain
-unvalidated because Node.js and npm are not available on PATH in this workspace,
-so C3 is intentionally marked partial rather than complete.
+77/77 tests in 24 suites. Frontend lint, typecheck, Vitest, and production build
+now pass in the current workspace; the authenticated shared HTTP client attaches
+the in-memory access JWT to the lifecycle calls.
 
 ---
 

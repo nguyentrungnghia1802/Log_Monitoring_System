@@ -173,7 +173,7 @@ export function ApiKeysPage() {
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Secret shown once</p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">Save this secret before dismissing</h2>
-              <p className="mt-1 text-sm text-amber-900">It will not be shown again. Store it in your secret manager. This page does not save it to browser storage.</p>
+              <p className="mt-1 text-sm text-amber-900"><span>It will not be shown again. Store it in your secret manager.</span> <span>This page does not save it to browser storage.</span></p>
             </div>
             <code data-testid="one-time-api-key" className="block break-all rounded-lg border border-amber-200 bg-white p-3 text-xs text-slate-900">{oneTimeSecret.rawApiKey}</code>
             <div className="flex flex-wrap gap-3">

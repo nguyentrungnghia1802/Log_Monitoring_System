@@ -39,9 +39,13 @@ Suggested environment/application properties:
 ```text
 SPRING_PROFILES_ACTIVE=local
 
-MONGODB_URI=mongodb://localhost:27017/log_monitor
+MONGODB_URI=mongodb://root:example_password@localhost:27017/log_monitor?authSource=admin
 
 JWT_SECRET=...
+JWT_EXPIRATION_MS=900000
+AUTH_REFRESH_TOKEN_EXPIRATION_SECONDS=604800
+AUTH_LOGIN_BURST_CAPACITY=5
+AUTH_LOGIN_WINDOW_SECONDS=60
 INGESTION_QUEUE_CAPACITY=50000
 INGESTION_WORKER_COUNT=4
 INGESTION_BATCH_MAX_SIZE=500
@@ -56,6 +60,12 @@ Secrets must not be committed.
 ---
 
 ## 4. Local seed
+
+For a new local database, enable the idempotent local-profile bootstrap with
+`LOCAL_BOOTSTRAP_ADMIN_ENABLED=true` and provide
+`LOCAL_BOOTSTRAP_ADMIN_EMAIL`/`LOCAL_BOOTSTRAP_ADMIN_PASSWORD` (minimum 12
+characters). It creates only a missing local organization and first
+organization administrator, and does not run outside the `local` profile.
 
 Seed only enough data to develop:
 
@@ -105,6 +115,16 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 - final active organization-admin protection;
 - organization-scoped audit records;
 - frontend loading, empty, error/retry, and destructive-action confirmation states.
+
+### Management authentication
+
+- valid email/password login and BCrypt verification;
+- generic unknown/wrong/disabled credential failures;
+- short access-token expiry and malformed-token rejection;
+- HttpOnly refresh-cookie rotation and old-session rejection;
+- logout revocation of refresh and access credentials;
+- login rate-limit response and safe authentication audit actions;
+- frontend refresh bootstrap, protected routing, in-memory access token, and logout.
 
 ### Project management
 

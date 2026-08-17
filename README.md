@@ -11,6 +11,7 @@ The current baseline includes the repository foundation plus:
 - organization/user management and organization-scoped project administration;
 - project settings, retention configuration, activity/service summaries, soft deactivation, and audited management APIs;
 - API-key inventory and safe create/rotate/revoke management with one-time secret display;
+- email/password management login with short access JWTs, rotating HttpOnly refresh sessions, protected routes, and logout;
 - Docker Compose configuration for local MongoDB;
 - environment and profile configuration;
 - smoke/integration tests and health endpoints.
@@ -32,7 +33,10 @@ Copy the environment template:
 cp .env.example .env
 ```
 
-Adjust values as needed before running the stack.
+For a fresh local database, set `LOCAL_BOOTSTRAP_ADMIN_ENABLED=true` and replace
+`LOCAL_BOOTSTRAP_ADMIN_EMAIL` and `LOCAL_BOOTSTRAP_ADMIN_PASSWORD` (12+
+characters). Export the `.env` values into your shell before starting the
+backend; Docker Compose reads `.env` automatically, while Gradle does not.
 
 ### 2. Start MongoDB
 
@@ -51,7 +55,7 @@ cd backend
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -61,19 +65,15 @@ Backend:
 
 ```bash
 cd backend
-./gradlew test -x :sdk:log-monitoring-java-sdk:test
+MONGODB_URI='mongodb://root:example_password@localhost:27017/log_monitor_test?authSource=admin' ./gradlew :test
 ```
-
-On the current Windows development workspace, the SDK test task can be
-blocked by a persistent lock on its generated test-results output file; the
-application test suite is run with that one task excluded until the lock is
-resolved without deleting the file.
 
 Frontend:
 
 ```bash
 cd frontend
 npm run test
+npm run lint
 npm run typecheck
 npm run build
 ```
@@ -83,6 +83,7 @@ npm run build
 - Backend health: http://localhost:8080/actuator/health
 - Readiness: http://localhost:8080/actuator/health/readiness
 - Ingestion status: http://localhost:8080/api/v1/system/ingestion-status
+- Management UI: http://localhost:5173/login
 
 ## Repository structure
 
