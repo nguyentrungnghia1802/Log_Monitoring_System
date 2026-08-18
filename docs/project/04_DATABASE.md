@@ -310,6 +310,42 @@ Do **not** blindly create every combination. Use real query traces and `explain(
 
 Potential partial indexes may be evaluated for fields such as `traceId` if sparsity is high.
 
+### D2 measured query-plan review (2026-08-18)
+
+`MongoQueryPlanIntegrationTest` runs against MongoDB 7 with 240 synthetic events
+split across two projects and calls `explain("executionStats")` for the six
+representative search shapes and four analytics pipelines below. `docsExamined`
+and `nReturned` are the values reported by MongoDB's execution statistics; for
+aggregation, `nReturned` is the `$cursor` input count rather than the final
+post-group response size.
+
+| Query shape | Winning index | Documents examined | Documents returned | COLLSCAN |
+| --- | --- | ---: | ---: | --- |
+| project + recent time | `idx_logs_proj_time` | 100 | 100 | no |
+| project + environment + time | `idx_logs_proj_environment_time` | 40 | 40 | no |
+| project + service + time | `idx_logs_proj_service_time` | 40 | 40 | no |
+| project + level + time | `idx_logs_proj_level_time` | 40 | 40 | no |
+| project + trace ID | `idx_logs_proj_trace` | 14 | 14 | no |
+| project + request ID | `idx_logs_proj_request` | 9 | 9 | no |
+| time-series aggregation | `idx_logs_proj_time` | 120 | 120 | no |
+| severity aggregation | `idx_logs_proj_time` | 120 | 120 | no |
+| top service aggregation | `idx_logs_proj_time` | 120 | 120 | no |
+| top fingerprint aggregation | `idx_logs_proj_level_time` | 80 | 80 | no |
+
+The top-fingerprint plan uses the level/time index because its early match is
+project + time + `level in (ERROR, WARN)`; the fingerprint field is grouped,
+not used as an equality predicate. All plans remained project-scoped and
+index-compatible, with no unexpected collection scan.
+
+The same integration test measures five paired 1,000-document write samples
+after one warm-up round, comparing the nine secondary indexes on `log_events`
+with an otherwise unindexed baseline collection. The local MongoDB 7 run
+recorded a baseline median of 33.636 ms and an indexed median of 54.446 ms
+(1.619x for this sample). This is a directional local measurement, not a
+production capacity claim. The indexes are retained because each supports a
+measured dominant read shape; no index is removed without a production-like
+workload benchmark and a follow-up plan review.
+
 ### Configuration collections
 
 - `organizations.slug` unique;

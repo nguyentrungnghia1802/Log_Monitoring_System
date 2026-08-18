@@ -691,8 +691,8 @@ and occurrence indexes, and unique configuration indexes. Missing
 project/environment and project/service indexes were added. Exception details
 now persist in the documented shape rather than under a compatibility `value`
 wrapper. `LogEventTest` proves a future producer timestamp cannot extend
-retention. No existing index was removed because D2 measurements have not yet
-been performed; this satisfies the no-removal-before-measurement guard.
+retention. D2 query-plan and write-impact evidence was completed before any
+index-removal decision; all current indexes remain retained.
 
 ---
 
@@ -700,31 +700,48 @@ been performed; this satisfies the no-removal-before-measurement guard.
 
 ### Required query plans
 
-- [ ] project + recent time;
-- [ ] project + environment + time;
-- [ ] project + service + time;
-- [ ] project + level + time;
-- [ ] project + trace ID;
-- [ ] project + request ID;
-- [ ] time-series aggregation;
-- [ ] severity aggregation;
-- [ ] top service aggregation;
-- [ ] top fingerprint aggregation.
+- [x] project + recent time;
+- [x] project + environment + time;
+- [x] project + service + time;
+- [x] project + level + time;
+- [x] project + trace ID;
+- [x] project + request ID;
+- [x] time-series aggregation;
+- [x] severity aggregation;
+- [x] top service aggregation;
+- [x] top fingerprint aggregation.
 
 ### Tasks
 
-- [ ] run `explain("executionStats")`;
-- [ ] record index selected;
-- [ ] record documents examined;
-- [ ] record documents returned;
-- [ ] detect unexpected `COLLSCAN`;
-- [ ] measure write impact of index count;
-- [ ] document the final index decision.
+- [x] run `explain("executionStats")`;
+- [x] record index selected;
+- [x] record documents examined;
+- [x] record documents returned;
+- [x] detect unexpected `COLLSCAN`;
+- [x] measure write impact of index count;
+- [x] document the final index decision.
 
 ### Exit criteria
 
-- [ ] Dominant queries are index-compatible and measured.
-- [ ] Index choices are based on evidence, not only documentation.
+- [x] Dominant queries are index-compatible and measured.
+- [x] Index choices are based on evidence, not only documentation.
+
+Evidence (2026-08-18): `MongoQueryPlanIntegrationTest` uses MongoDB 7 and
+executes all ten required search/analytics shapes with `executionStats`. The
+six search plans selected `idx_logs_proj_time`,
+`idx_logs_proj_environment_time`, `idx_logs_proj_service_time`,
+`idx_logs_proj_level_time`, `idx_logs_proj_trace`, and
+`idx_logs_proj_request`, examining 100/40/40/40/14/9 documents respectively;
+all returned the same count under the capped test query and none used
+`COLLSCAN`. The four aggregation plans examined 120/120/120/80 documents;
+the first three selected `idx_logs_proj_time`, while top fingerprints selected
+`idx_logs_proj_level_time`, with no collection scan. The test also performed
+five paired 1,000-document write rounds after warm-up: the nine-secondary-index
+`log_events` collection had a 54.446 ms median versus 33.636 ms for the
+baseline collection (1.619x in this local sample). Because each retained index
+supports a measured dominant query and the write measurement is directional,
+no index was removed; production-like load evidence is required before future
+pruning.
 
 ---
 

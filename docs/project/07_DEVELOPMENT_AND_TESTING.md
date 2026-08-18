@@ -189,6 +189,20 @@ Test:
 - top services/errors;
 - authorization repository scope.
 
+The D2 query-plan review is a real-MongoDB integration test rather than a
+mocked repository check. Run it from `backend` with the root-project task path
+so the filter is not incorrectly applied to SDK subprojects:
+
+```bash
+./gradlew :test --tests com.example.logmonitor.persistence.MongoQueryPlanIntegrationTest --no-parallel --info
+```
+
+The test reports the winning index, `totalDocsExamined`, `nReturned`, and
+collection-scan detection for six search shapes and four analytics pipelines.
+It also records paired write medians for the current `log_events` secondary
+index set versus a baseline collection. The measured values are evidence for
+index decisions, not a substitute for the later production-like load plan.
+
 TTL deletion timing itself should not use fragile exact-second assertions.
 
 ---
