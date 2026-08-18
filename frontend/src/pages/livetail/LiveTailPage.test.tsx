@@ -24,7 +24,7 @@ vi.mock("../../auth/authToken", () => ({
 }));
 
 vi.mock("@stomp/stompjs", () => ({
-  Client: vi.fn().mockImplementation((options: MockStompOptions) => {
+  Client: vi.fn().mockImplementation(function (options: MockStompOptions) {
     stompState.options = options;
     return {
       activate: vi.fn(),

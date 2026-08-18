@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" vite.config.ts vitest.config.ts tailwind.config.js postcss.config.js",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" vite.config.ts vitest.config.ts tailwind.config.js postcss.config.js",
     "lint": "oxlint src",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
@@ -30,9 +32,10 @@
     "jsdom": "^26.1.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.4.49",
+    "prettier": "3.9.6",
     "tailwindcss": "^3.4.15",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "vitest": "^2.1.4"
+    "vitest": "4.1.10"
   }
 }

@@ -1327,9 +1327,12 @@ failure, and the isolated test followed by the full rerun passed.
 The real-browser portion is `BLOCKED_EXTERNAL`: the available browser runtime
 failed before opening or interacting with the page on repeated attempts with
 `failed to write kernel assets: The system cannot find the path specified.
-(os error 3)`. Consequently no G3 required-path or cross-tenant checkbox is
-marked complete, and the runtime error must be resolved before claiming the
-operator journey or tenant-isolation E2E evidence.
+(os error 3)`. A second attempt on 2026-08-18 reached the trusted browser
+client import but was rejected with `Importing module "node:process" is not
+allowed in node_repl`; no page interaction occurred. Consequently no G3
+required-path or cross-tenant checkbox is marked complete, and the runtime
+error must be resolved before claiming the operator journey or tenant-
+isolation E2E evidence.
 
 ---
 
@@ -1337,21 +1340,38 @@ operator journey or tenant-isolation E2E evidence.
 
 ### Tasks
 
-- [ ] Java formatting;
-- [ ] frontend formatting;
-- [ ] Java static analysis;
-- [ ] frontend lint;
-- [ ] typecheck;
-- [ ] dependency vulnerability scanning;
-- [ ] secret scanning;
-- [ ] container/image scanning;
+- [~] Java formatting;
+- [x] frontend formatting;
+- [x] Java static analysis;
+- [x] frontend lint;
+- [x] typecheck;
+- [~] dependency vulnerability scanning;
+- [~] secret scanning;
+- [!] container/image scanning;
 - [ ] license review where needed;
-- [ ] fail CI on high-severity actionable findings;
-- [ ] document narrow exceptions.
+- [x] fail CI on high-severity actionable findings;
+- [x] document narrow exceptions.
 
 ### Exit criteria
 
-- [ ] CI blocks known secret leaks and critical dependency problems.
+- [~] CI blocks known secret leaks and critical dependency problems.
+
+Evidence (2026-08-18): frontend formatting is now pinned to Prettier 3.9.6
+with `npm run format:check`; all source/config files pass. Frontend lint,
+typecheck, Vitest 4.1.10 tests (11 files/17 tests), build, and
+`npm audit --audit-level=high` pass with zero reported vulnerabilities. The
+Vitest upgrade removed the previously reported critical/high Vite/esbuild
+dependency findings; the Live Tail test mock was updated to use a constructable
+function under Vitest 4.
+
+Backend Checkstyle 10.21.4 runs for the application and all Java subprojects;
+`checkstyleMain`, `checkstyleTest`, `check`, and `build` pass. The rule set is
+deliberately limited to repository-wide stable checks (UTF-8, tabs, EOF, and a
+240-character ceiling); stricter import/console rules are not enabled because
+existing test/example/SDK conventions intentionally use them. Java formatter,
+Gradle dependency vulnerability scanning, license review, and the remote
+Gitleaks/Dependency Review jobs still need a tool-backed result. Container
+scanning is blocked until Phase I1 supplies production image definitions.
 
 ---
 
