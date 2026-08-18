@@ -2,6 +2,7 @@ package com.example.logmonitor.livetail.config;
 
 import com.example.logmonitor.auth.application.JwtService;
 import com.example.logmonitor.auth.application.ProjectAuthorizationService;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.livetail.application.LiveTailSubscriptionRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +43,9 @@ class StompAuthChannelInterceptorTest {
         authorizationService = mock(ProjectAuthorizationService.class);
         properties = new LiveTailProperties();
         properties.setMaxSubscriptionsPerSession(1);
-        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry());
+        GracefulShutdownCoordinator shutdownCoordinator = mock(GracefulShutdownCoordinator.class);
+        when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(true);
+        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry(), shutdownCoordinator);
         interceptor = new StompAuthChannelInterceptor(
             jwtService,
             authorizationService,

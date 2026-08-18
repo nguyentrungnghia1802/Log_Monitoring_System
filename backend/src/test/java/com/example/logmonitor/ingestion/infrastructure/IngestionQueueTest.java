@@ -71,6 +71,18 @@ class IngestionQueueTest {
         }
     }
 
+    @Test
+    void rejectsSingleAndBatchAdmissionAfterShutdown() {
+        IngestionQueue queue = new IngestionQueue(2, new SimpleMeterRegistry());
+        queue.stopAccepting();
+
+        assertFalse(queue.isAccepting());
+        assertFalse(queue.offer(createEvent("after-shutdown-single")));
+        assertFalse(queue.offerAll(List.of(createEvent("after-shutdown-batch"))));
+        assertEquals(0, queue.size());
+        assertEquals(2, queue.rejectedCount());
+    }
+
     private LogEvent createEvent(String message) {
         IngestionRequest request = new IngestionRequest(
             null, null, "INFO", "service", "dev", "LOG", message, null, null, null, null, null

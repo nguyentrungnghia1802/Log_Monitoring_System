@@ -2,6 +2,7 @@ package com.example.logmonitor.livetail.application;
 
 import com.example.logmonitor.auth.application.JwtService;
 import com.example.logmonitor.ingestion.domain.LogEvent;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.livetail.config.LiveTailProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class LiveTailPublisherTest {
 
@@ -33,7 +35,9 @@ class LiveTailPublisherTest {
     @BeforeEach
     void setUp() {
         LiveTailProperties properties = new LiveTailProperties();
-        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry());
+        GracefulShutdownCoordinator shutdownCoordinator = mock(GracefulShutdownCoordinator.class);
+        when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(true);
+        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry(), shutdownCoordinator);
         registry.registerSession(
             "session-1",
             new JwtService.UserPrincipal("user-1", "operator", "org-1"),

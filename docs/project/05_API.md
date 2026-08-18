@@ -80,6 +80,10 @@ Status: `503` with `Retry-After: 1` (seconds). The header gives clients a
 bounded retry hint; it does not mean that the rejected event was persisted or
 accepted.
 
+During application shutdown the same endpoint returns `503` with
+`INGESTION_SHUTTING_DOWN`; clients should stop sending to that instance and
+retry through the deployment's normal traffic-routing policy.
+
 ---
 
 ## 4. Authentication
@@ -624,6 +628,7 @@ API_KEY_REVOKED
 RATE_LIMITED
 MALFORMED_REQUEST
 INGESTION_BACKPRESSURE
+INGESTION_SHUTTING_DOWN
 DEPENDENCY_UNAVAILABLE
 SEARCH_RANGE_TOO_LARGE
 INVALID_CURSOR

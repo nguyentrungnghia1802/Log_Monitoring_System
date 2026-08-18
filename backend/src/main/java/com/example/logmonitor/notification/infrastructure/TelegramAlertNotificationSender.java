@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
+import java.time.Duration;
 
 @Component
 @ConditionalOnProperty(name = "alert.notification.mode", havingValue = "telegram")
@@ -29,11 +31,17 @@ public class TelegramAlertNotificationSender implements AlertNotificationSender 
     public TelegramAlertNotificationSender(
         @Value("${telegram.bot.token:}") String botToken,
         @Value("${telegram.chat.id:}") String chatId,
-        SensitiveDataRedactor redactor
+        SensitiveDataRedactor redactor,
+        RestTemplateBuilder restTemplateBuilder,
+        @Value("${notification.http-timeout-ms:2000}") int httpTimeoutMs
     ) {
         this.botToken = botToken;
         this.chatId = chatId;
-        this.restTemplate = new RestTemplate();
+        Duration timeout = Duration.ofMillis(Math.max(1, httpTimeoutMs));
+        this.restTemplate = restTemplateBuilder
+            .setConnectTimeout(timeout)
+            .setReadTimeout(timeout)
+            .build();
         this.redactor = redactor;
     }
 

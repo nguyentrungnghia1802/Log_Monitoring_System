@@ -2,6 +2,8 @@ package com.example.logmonitor.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,15 +30,18 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final PayloadLimitFilter payloadLimitFilter;
+    private final Environment environment;
 
     public SecurityConfig(
         JwtAuthenticationFilter jwtAuthenticationFilter,
         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
-        PayloadLimitFilter payloadLimitFilter
+        PayloadLimitFilter payloadLimitFilter,
+        Environment environment
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
         this.payloadLimitFilter = payloadLimitFilter;
+        this.environment = environment;
     }
 
     @Bean
@@ -62,16 +67,22 @@ public class SecurityConfig {
                             "FORBIDDEN", "Access denied");
                     }
                 }))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/actuator/prometheus", "/actuator/info").permitAll()
-                .requestMatchers("/actuator/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
-                .requestMatchers("/api/v1/auth/**").authenticated()
-                .requestMatchers("/ws-logs/**").permitAll() // Handled via StompAuthChannelInterceptor
-                .requestMatchers("/api/v1/ingest/**").permitAll() // Handled via ApiKeyAuthenticationFilter
-                .requestMatchers("/api/v1/**").authenticated()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                if (environment.acceptsProfiles(Profiles.of("test"))) {
+                    // The shutdown actuator is exposed only by application-test.yml so the
+                    // Windows smoke test can exercise the same ContextClosedEvent path as SIGTERM.
+                    auth.requestMatchers("/actuator/shutdown").permitAll();
+                }
+                auth
+                    .requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll()
+                    .requestMatchers("/actuator/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                    .requestMatchers("/api/v1/auth/**").authenticated()
+                    .requestMatchers("/ws-logs/**").permitAll() // Handled via StompAuthChannelInterceptor
+                    .requestMatchers("/api/v1/ingest/**").permitAll() // Handled via ApiKeyAuthenticationFilter
+                    .requestMatchers("/api/v1/**").authenticated()
+                    .anyRequest().authenticated();
+            })
             .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(payloadLimitFilter, ApiKeyAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

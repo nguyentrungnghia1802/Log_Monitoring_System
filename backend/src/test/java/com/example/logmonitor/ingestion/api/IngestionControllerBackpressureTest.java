@@ -32,4 +32,27 @@ class IngestionControllerBackpressureTest {
         assertEquals(false, body.get("accepted"));
         assertEquals("INGESTION_BACKPRESSURE", ((Map<?, ?>) body.get("error")).get("code"));
     }
+
+    @Test
+    void mapsShutdownRejectionToExplicitShutdownError() {
+        IngestionService ingestionService = mock(IngestionService.class);
+        when(ingestionService.accept(any(), any()))
+            .thenReturn(new IngestionService.AdmissionResult(
+                false,
+                0,
+                "request-2",
+                "memory_queue",
+                "Ingestion is stopping for graceful shutdown",
+                "INGESTION_SHUTTING_DOWN"
+            ));
+        IngestionController controller = new IngestionController(ingestionService);
+
+        var response = controller.ingestLog(
+            "lm_live_test_key",
+            new IngestionRequest(null, null, "INFO", "test-service", "test", "TEST", "message", null, null, null, null, null)
+        );
+
+        assertEquals(503, response.getStatusCode().value());
+        assertEquals("INGESTION_SHUTTING_DOWN", ((Map<?, ?>) response.getBody().get("error")).get("code"));
+    }
 }

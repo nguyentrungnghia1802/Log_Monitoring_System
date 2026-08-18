@@ -268,6 +268,29 @@ payloads, credentials, or secrets.
 - worker drains within timeout;
 - application exits.
 
+E2 coverage is provided by `GracefulShutdownCoordinatorTest`,
+`GracefulShutdownIntegrationTest`, `PersistenceWorkerTest`,
+`LiveTailSubscriptionRegistryTest`, and `AlertServiceTest`. The integration
+test verifies readiness changes from `UP/200` to `OUT_OF_SERVICE/503`, new
+ingestion returns `503 INGESTION_SHUTTING_DOWN`, and Spring closes the managed
+Mongo client. Worker tests cover partial-batch flushing, queue-depth metrics,
+and the configured deadline. Notification tests verify that no new provider
+call starts after shutdown. Live-tail state is cleared before the Spring
+WebSocket transport stops.
+
+Build a boot jar and run the reproducible process smoke test from `backend`:
+
+```powershell
+./gradlew bootJar --no-parallel
+./scripts/verify-graceful-shutdown.ps1
+```
+
+The script waits for readiness, invokes the test-profile shutdown trigger on
+Windows (the portable JVM equivalent of the signal path), and checks the
+coordinator and worker drain markers. On POSIX it sends `kill -TERM` to the
+boot process. The shutdown trigger is exposed only by `application-test.yml`;
+it must never be enabled in a production profile.
+
 ---
 
 ## 9. Load test plan

@@ -13,6 +13,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 public class IngestionQueue {
@@ -20,6 +21,7 @@ public class IngestionQueue {
     private final BlockingQueue<LogEvent> queue;
     private final AtomicInteger acceptedCounter = new AtomicInteger();
     private final AtomicInteger rejectedCounter = new AtomicInteger();
+    private final AtomicBoolean accepting = new AtomicBoolean(true);
     private final Counter acceptedMeter;
     private final Counter rejectedMeter;
 
@@ -51,6 +53,11 @@ public class IngestionQueue {
     }
 
     public synchronized boolean offer(LogEvent event) {
+        if (!accepting.get()) {
+            rejectedCounter.incrementAndGet();
+            rejectedMeter.increment();
+            return false;
+        }
         boolean accepted = queue.offer(event);
         if (accepted) {
             acceptedCounter.incrementAndGet();
@@ -64,6 +71,11 @@ public class IngestionQueue {
 
     public boolean offerAll(List<LogEvent> events) {
         synchronized (this) {
+            if (!accepting.get()) {
+                rejectedCounter.addAndGet(events.size());
+                rejectedMeter.increment(events.size());
+                return false;
+            }
             if (!hasCapacity(events.size())) {
                 rejectedCounter.addAndGet(events.size());
                 rejectedMeter.increment(events.size());
@@ -96,6 +108,14 @@ public class IngestionQueue {
 
     public int remainingCapacity() {
         return queue.remainingCapacity();
+    }
+
+    public synchronized void stopAccepting() {
+        accepting.set(false);
+    }
+
+    public boolean isAccepting() {
+        return accepting.get();
     }
 
     public int acceptedCount() {

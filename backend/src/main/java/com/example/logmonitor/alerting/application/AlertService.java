@@ -6,6 +6,7 @@ import com.example.logmonitor.alerting.domain.AlertRule;
 import com.example.logmonitor.alerting.domain.AlertRuleRepository;
 import com.example.logmonitor.audit.application.AuditService;
 import com.example.logmonitor.common.security.SensitiveDataRedactor;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.notification.domain.AlertNotification;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import com.example.logmonitor.persistence.LogEventDocument;
@@ -42,6 +43,7 @@ public class AlertService {
     private final AlertNotificationSender notificationSender;
     private final AuditService auditService;
     private final SensitiveDataRedactor redactor;
+    private final GracefulShutdownCoordinator shutdownCoordinator;
 
     public AlertService(
         AlertRuleRepository ruleRepository,
@@ -49,7 +51,8 @@ public class AlertService {
         MongoTemplate mongoTemplate,
         AlertNotificationSender notificationSender,
         AuditService auditService,
-        SensitiveDataRedactor redactor
+        SensitiveDataRedactor redactor,
+        GracefulShutdownCoordinator shutdownCoordinator
     ) {
         this.ruleRepository = ruleRepository;
         this.occurrenceRepository = occurrenceRepository;
@@ -57,6 +60,7 @@ public class AlertService {
         this.notificationSender = notificationSender;
         this.auditService = auditService;
         this.redactor = redactor;
+        this.shutdownCoordinator = shutdownCoordinator;
     }
 
     public List<AlertRule> getRules(String projectId) {
@@ -187,14 +191,22 @@ public class AlertService {
         occurrence.setLastAttemptAt(Instant.now());
 
         AlertNotificationSender.NotificationResult result;
-        try {
-            result = notificationSender.send(notification);
-        } catch (RuntimeException exception) {
+        if (!shutdownCoordinator.isAcceptingTraffic()) {
             result = new AlertNotificationSender.NotificationResult(
                 false,
-                notificationSender.getClass().getSimpleName(),
-                exception.getMessage()
+                "shutdown",
+                "Application is shutting down"
             );
+        } else {
+            try {
+                result = notificationSender.send(notification);
+            } catch (RuntimeException exception) {
+                result = new AlertNotificationSender.NotificationResult(
+                    false,
+                    notificationSender.getClass().getSimpleName(),
+                    exception.getMessage()
+                );
+            }
         }
 
         Instant attemptedAt = occurrence.getLastAttemptAt();
