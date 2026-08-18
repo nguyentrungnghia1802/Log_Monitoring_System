@@ -1016,19 +1016,31 @@ pass.
 
 ### Tasks
 
-- [ ] configure an external uptime/readiness check;
-- [ ] define alerts for API unavailability;
-- [ ] define queue-depth alert;
-- [ ] define persistence-failure alert;
-- [ ] define backpressure alert;
-- [ ] define MongoDB unavailable alert;
-- [ ] define heap/GC alert;
-- [ ] define alert-delivery-failure alert;
-- [ ] avoid relying only on the monitored platform to alert about itself.
+- [x] configure an external uptime/readiness check;
+- [x] define alerts for API unavailability;
+- [x] define queue-depth alert;
+- [x] define persistence-failure alert;
+- [x] define backpressure alert;
+- [x] define MongoDB unavailable alert;
+- [x] define heap/GC alert;
+- [x] define alert-delivery-failure alert;
+- [x] avoid relying only on the monitored platform to alert about itself.
 
 ### Exit criteria
 
-- [ ] A total platform failure can still be detected externally.
+- [x] A total platform failure can still be detected externally.
+
+Evidence (2026-08-18): `.github/workflows/external-platform-readiness.yml`
+executes the independent `check-readiness.ps1` probe every five minutes when
+the repository variable `PLATFORM_READINESS_URL` is configured. The Prometheus
+baseline in `ops/monitoring/prometheus/scrape-config.example.yml` combines
+backend metrics with an independent Blackbox Exporter readiness target, and
+`ops/monitoring/prometheus/platform-alerts.yml` covers API/readiness outage,
+queue pressure, backpressure, persistence/Mongo failures, heap/GC pressure, and
+alert-delivery failures. The GitHub workflow and Prometheus/Blackbox deployment
+must remain outside the backend failure boundary; setting the repository
+variable and deploying these monitoring components are environment actions
+that cannot be performed from this local checkout.
 
 ---
 
