@@ -20,6 +20,10 @@ repositories {
 dependencies {
     implementation project(':sdk:log-monitoring-java-sdk')
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 // This project is a reusable starter library, not an executable application.

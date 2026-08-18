@@ -190,6 +190,7 @@ sdk/log-monitoring-java-sdk/src/main/java/com/example/logmonitor/sdk/
 |-- LogEventPayload.java
 |-- LogMonitoringClientConfig.java
 |-- LogMonitoringClient.java
+|-- LogMonitoringOperations.java
 |-- LogSubmissionOutcome.java
 \-- LogSubmissionResult.java
 ```
@@ -199,6 +200,13 @@ single worker, bounded batch formation, HTTP retry classification, and a
 bounded close flush. `LogSubmissionResult` is callback-based because the
 public `log`/`error` methods return before server admission. `202` is exposed
 as `ACCEPTED_BY_SERVER_ADMISSION`, never as durable persistence.
+
+The optional Spring Boot adapter lives under
+`sdk/log-monitoring-spring-boot-starter/`. Its auto-configuration binds the
+same bounded settings, supplies `LogMonitoringOperations` as either the real
+client or a network-free no-op, and adds Actuator health plus Micrometer
+outcome/queue signals. It is disabled by default and is registered through
+`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
 
 ---
 
