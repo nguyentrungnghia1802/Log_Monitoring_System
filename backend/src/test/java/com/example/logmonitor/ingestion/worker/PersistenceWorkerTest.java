@@ -81,11 +81,46 @@ class PersistenceWorkerTest {
         assertEquals(1.0, meterRegistry.get("ingestion.worker.shutdown.queue_depth").gauge().value());
     }
 
+    @Test
+    void flushesPartialBatchBeforeWorkerStops() throws Exception {
+        IngestionQueue queue = mock(IngestionQueue.class);
+        LogEventPersistenceService persistenceService = mock(LogEventPersistenceService.class);
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        LogEvent partialEvent = createEvent("partial-batch");
+        CountDownLatch persisted = new CountDownLatch(1);
+
+        when(queue.poll(anyLong(), eq(TimeUnit.MILLISECONDS)))
+            .thenReturn(partialEvent, (LogEvent) null)
+            .thenThrow(new InterruptedException("test stop"));
+        doAnswer(invocation -> {
+            persisted.countDown();
+            return null;
+        }).when(persistenceService).persist(anyList());
+
+        PersistenceWorker worker = newWorker(queue, persistenceService, meterRegistry, 10, 10);
+        worker.start();
+
+        assertTrue(persisted.await(2, TimeUnit.SECONDS));
+        worker.shutdown();
+
+        verify(persistenceService).persist(List.of(partialEvent));
+    }
+
     private PersistenceWorker newWorker(
         IngestionQueue queue,
         LogEventPersistenceService persistenceService,
         SimpleMeterRegistry meterRegistry,
         int batchMaxSize
+    ) {
+        return newWorker(queue, persistenceService, meterRegistry, batchMaxSize, 10);
+    }
+
+    private PersistenceWorker newWorker(
+        IngestionQueue queue,
+        LogEventPersistenceService persistenceService,
+        SimpleMeterRegistry meterRegistry,
+        int batchMaxSize,
+        long shutdownTimeoutMs
     ) {
         return new PersistenceWorker(
             queue,
@@ -93,6 +128,7 @@ class PersistenceWorkerTest {
             1,
             batchMaxSize,
             10,
+            shutdownTimeoutMs,
             new SensitiveDataRedactor(new RedactionProperties()),
             meterRegistry
         );

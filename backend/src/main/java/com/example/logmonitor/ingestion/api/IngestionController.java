@@ -45,16 +45,19 @@ public class IngestionController {
             ));
         }
 
-        return backpressureResponse(result.message());
+        return rejectionResponse(result.errorCode(), result.message());
     }
 
-    private ResponseEntity<Map<String, Object>> backpressureResponse(String message) {
+    private ResponseEntity<Map<String, Object>> rejectionResponse(String errorCode, String message) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
             .header(HttpHeaders.RETRY_AFTER, "1")
             .body(Map.of(
-            "accepted", false,
-            "error", Map.of("code", "INGESTION_BACKPRESSURE", "message", message)
-        ));
+                "accepted", false,
+                "error", Map.of(
+                    "code", errorCode == null ? "INGESTION_BACKPRESSURE" : errorCode,
+                    "message", message
+                )
+            ));
     }
 
     @PostMapping("/logs/batch")
@@ -79,6 +82,6 @@ public class IngestionController {
             ));
         }
 
-        return backpressureResponse(result.message());
+        return rejectionResponse(result.errorCode(), result.message());
     }
 }

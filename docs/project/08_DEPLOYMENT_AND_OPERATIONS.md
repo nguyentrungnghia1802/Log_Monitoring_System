@@ -54,6 +54,9 @@ INGESTION_WORKER_COUNT
 INGESTION_BATCH_MAX_SIZE
 INGESTION_BATCH_MAX_WAIT_MS
 INGESTION_ENQUEUE_TIMEOUT_MS
+SHUTDOWN_TIMEOUT
+SHUTDOWN_TIMEOUT_MS
+NOTIFICATION_HTTP_TIMEOUT_MS
 INGESTION_MAX_HTTP_BODY_BYTES
 INGESTION_MAX_MESSAGE_LENGTH
 INGESTION_MAX_STACK_TRACE_LENGTH
@@ -120,6 +123,13 @@ At minimum considers:
 - MongoDB connectivity;
 - application startup complete;
 - shutdown not in progress.
+
+The readiness group includes `readinessState,mongo`. It returns `503` when
+MongoDB is unavailable or when the shutdown coordinator publishes
+`REFUSING_TRAFFIC`. Liveness remains independent of MongoDB outage. During
+shutdown, the coordinator rejects new ingestion with
+`INGESTION_SHUTTING_DOWN`, closes queue admission, clears live-tail registry
+state, and lets Spring close managed Mongo resources.
 
 For V1, readiness may remain true during temporary ingestion queue pressure because backpressure is an explicit endpoint behavior. Severe internal worker failure may mark readiness false according to an operational threshold.
 
@@ -393,6 +403,8 @@ Suggested order:
 - Backup/restore tested.
 - Alert channel tested.
 - Graceful shutdown tested.
+- `SHUTDOWN_TIMEOUT_MS` and Spring `SHUTDOWN_TIMEOUT` set for the deployment.
+- process smoke test confirms readiness withdrawal and worker drain markers.
 - Incident runbooks exercised.
 - Retention/privacy policy approved.
 - No claim of durable ingestion while V1 still uses process memory.

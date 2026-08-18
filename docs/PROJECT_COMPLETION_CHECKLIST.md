@@ -891,21 +891,36 @@ record safe exception metadata without payloads or credentials.
 
 ### Tasks
 
-- [ ] readiness becomes unavailable before shutdown;
-- [ ] new ingestion is rejected/stopped;
-- [ ] queue producers stop;
-- [ ] workers drain;
-- [ ] partial batch flushes;
-- [ ] shutdown has a configured deadline;
-- [ ] unfinished event count is recorded;
-- [ ] WebSocket sessions close cleanly;
-- [ ] notification operations stop safely;
-- [ ] MongoDB resources close.
+- [x] readiness becomes unavailable before shutdown;
+- [x] new ingestion is rejected/stopped;
+- [x] queue producers stop;
+- [x] workers drain;
+- [x] partial batch flushes;
+- [x] shutdown has a configured deadline;
+- [x] unfinished event count is recorded;
+- [x] WebSocket sessions close cleanly;
+- [x] notification operations stop safely;
+- [x] MongoDB resources close.
 
 ### Exit criteria
 
-- [ ] SIGTERM behavior is tested.
-- [ ] A deployment does not hang indefinitely.
+- [x] SIGTERM (or the platform-equivalent JVM shutdown path) is tested.
+- [x] A deployment does not hang indefinitely.
+
+Evidence (2026-08-18): `GracefulShutdownCoordinator` publishes
+`ReadinessState.REFUSING_TRAFFIC` before closing `IngestionQueue` admission.
+`GracefulShutdownIntegrationTest` proves readiness `UP/200` to
+`OUT_OF_SERVICE/503`, rejects new ingestion with
+`INGESTION_SHUTTING_DOWN`, and verifies Spring closes the managed Mongo client.
+`PersistenceWorkerTest` proves partial-batch flush and bounded worker shutdown;
+`ingestion.worker.shutdown.queue_depth` and
+`ingestion.worker.shutdown.unfinished_events` record drain state. The live-tail
+registry clears sessions/subscriptions on context close, while `AlertService`
+does not start a new provider call after shutdown and Telegram calls have a
+bounded HTTP timeout. `server.shutdown=graceful`, `SHUTDOWN_TIMEOUT`, and
+`SHUTDOWN_TIMEOUT_MS` provide deployment deadlines. The process smoke script
+passes on Windows using the test-profile JVM shutdown trigger; its POSIX path
+sends `SIGTERM` and checks the same shutdown markers.
 
 ---
 

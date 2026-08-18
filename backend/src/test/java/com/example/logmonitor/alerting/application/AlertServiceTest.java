@@ -7,6 +7,7 @@ import com.example.logmonitor.alerting.domain.AlertRuleRepository;
 import com.example.logmonitor.audit.application.AuditService;
 import com.example.logmonitor.common.security.RedactionProperties;
 import com.example.logmonitor.common.security.SensitiveDataRedactor;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import com.example.logmonitor.persistence.LogEventDocument;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ class AlertServiceTest {
     private MongoTemplate mongoTemplate;
     private AlertNotificationSender notificationSender;
     private AuditService auditService;
+    private GracefulShutdownCoordinator shutdownCoordinator;
     private AlertService alertService;
 
     @BeforeEach
@@ -39,13 +41,15 @@ class AlertServiceTest {
         mongoTemplate = mock(MongoTemplate.class);
         notificationSender = mock(AlertNotificationSender.class);
         auditService = mock(AuditService.class);
+        shutdownCoordinator = mock(GracefulShutdownCoordinator.class);
+        when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(true);
         when(occurrenceRepository.save(any(AlertOccurrence.class))).thenAnswer(invocation -> {
             AlertOccurrence occurrence = invocation.getArgument(0);
             if (occurrence.getId() == null) occurrence.setId("occ-1");
             return occurrence;
         });
         alertService = new AlertService(ruleRepository, occurrenceRepository, mongoTemplate, notificationSender,
-            auditService, new SensitiveDataRedactor(new RedactionProperties()));
+            auditService, new SensitiveDataRedactor(new RedactionProperties()), shutdownCoordinator);
     }
 
     @Test
@@ -158,6 +162,23 @@ class AlertServiceTest {
         verify(occurrenceRepository, times(1)).save(same(occurrence));
         verify(auditService).logAction("operator@example.com", "org-1", "demo-project", "RETRY_NOTIFICATION",
             "ALERT_OCCURRENCE", "occ-1", "Alert notification delivery retried");
+    }
+
+    @Test
+    void doesNotStartNotificationDeliveryAfterShutdownBegins() {
+        AlertOccurrence occurrence = occurrence();
+        AlertRule rule = validRule();
+        when(occurrenceRepository.findByIdAndProjectId("occ-1", "demo-project"))
+            .thenReturn(Optional.of(occurrence));
+        when(ruleRepository.findByIdAndProjectId("rule-1", "demo-project")).thenReturn(Optional.of(rule));
+        when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(false);
+
+        alertService.retryNotification("demo-project", "occ-1", "operator@example.com", "org-1").orElseThrow();
+
+        verifyNoInteractions(notificationSender);
+        assertEquals("FAILED", occurrence.getDeliveryStatus());
+        assertEquals("shutdown", occurrence.getDeliveryAttempts().get(0).provider());
+        assertEquals("Application is shutting down", occurrence.getLastError());
     }
 
     @Test

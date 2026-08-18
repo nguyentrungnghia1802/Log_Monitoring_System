@@ -2,6 +2,7 @@ package com.example.logmonitor.livetail.application;
 
 import com.example.logmonitor.auth.application.JwtService;
 import com.example.logmonitor.ingestion.domain.LogEvent;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.livetail.config.LiveTailProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LiveTailSubscriptionRegistryTest {
 
@@ -28,7 +31,9 @@ class LiveTailSubscriptionRegistryTest {
     @BeforeEach
     void setUp() {
         properties = new LiveTailProperties();
-        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry());
+        GracefulShutdownCoordinator shutdownCoordinator = mock(GracefulShutdownCoordinator.class);
+        when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(true);
+        registry = new LiveTailSubscriptionRegistry(properties, new SimpleMeterRegistry(), shutdownCoordinator);
     }
 
     @Test
@@ -96,6 +101,22 @@ class LiveTailSubscriptionRegistryTest {
         Message<byte[]> message = MessageBuilder.withPayload(new byte[0]).build();
 
         registry.onSessionDisconnect(new SessionDisconnectEvent(this, message, "session-1", CloseStatus.NORMAL));
+
+        assertEquals(0, registry.activeSessionCount());
+        assertEquals(0, registry.activeSubscriptionCount());
+    }
+
+    @Test
+    void clearsAllSessionsWhenContextCloses() {
+        registry.registerSession("session-1", principal("user-1"), "10.0.0.1");
+        registry.registerSubscription(
+            "session-1",
+            "sub-1",
+            "project-a",
+            LiveTailSubscriptionRegistry.filter(null, null, null)
+        );
+
+        registry.closeAllSessions();
 
         assertEquals(0, registry.activeSessionCount());
         assertEquals(0, registry.activeSubscriptionCount());

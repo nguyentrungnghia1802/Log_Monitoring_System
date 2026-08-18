@@ -386,17 +386,24 @@ This is an accepted V1 trade-off.
 
 Shutdown sequence:
 
-1. readiness becomes false;
-2. stop accepting new ingestion;
-3. stop WebSocket admission/subscriptions cleanly;
+1. `GracefulShutdownCoordinator` publishes `REFUSING_TRAFFIC` and readiness
+   becomes unavailable;
+2. stop accepting new ingestion at both the application gate and queue;
+3. stop WebSocket admission/subscriptions cleanly and clear registry state;
 4. stop ingestion queue producers;
-5. allow workers to drain for configured timeout;
-6. flush partial batch if possible;
-7. record final queue depth and batch outcome;
-8. close MongoDB/client resources;
-9. exit.
+5. allow workers to drain for the configured timeout;
+6. flush partial batches if possible;
+7. record initial and final queue depth, unfinished event count, and batch
+   outcome;
+8. stop starting new notification deliveries; in-flight HTTP notification
+   calls have a bounded connect/read timeout;
+9. let Spring close the managed MongoDB/client resources;
+10. exit.
 
-A bounded shutdown deadline is mandatory.
+A bounded shutdown deadline is mandatory. `SHUTDOWN_TIMEOUT_MS` controls the
+worker drain deadline and `SHUTDOWN_TIMEOUT` controls Spring's lifecycle phase
+deadline. The application-level shutdown state is idempotent so a repeated
+context-close signal cannot double-count or restart admission.
 
 ---
 

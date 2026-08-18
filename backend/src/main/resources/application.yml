@@ -1,6 +1,8 @@
 spring:
   application:
     name: log-monitoring-system
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:10s}
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   data:
@@ -28,6 +30,13 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+shutdown:
+  timeout-ms: ${SHUTDOWN_TIMEOUT_MS:5000}
+
+notification:
+  http-timeout-ms: ${NOTIFICATION_HTTP_TIMEOUT_MS:2000}
 
 search:
   default-range-hours: ${SEARCH_DEFAULT_RANGE_HOURS:1}

@@ -2,9 +2,13 @@ package com.example.logmonitor.livetail.application;
 
 import com.example.logmonitor.auth.application.JwtService;
 import com.example.logmonitor.ingestion.domain.LogEvent;
+import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.livetail.config.LiveTailProperties;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.stereotype.Component;
@@ -20,19 +24,27 @@ import java.util.regex.Pattern;
 @Component
 public class LiveTailSubscriptionRegistry {
 
+    private static final Logger log = LoggerFactory.getLogger(LiveTailSubscriptionRegistry.class);
+
     private static final Set<String> ALLOWED_LEVELS = Set.of(
         "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
     );
     private static final Pattern FILTER_VALUE_PATTERN = Pattern.compile("^[A-Za-z0-9._:/-]{1,64}$");
 
     private final LiveTailProperties properties;
+    private final GracefulShutdownCoordinator shutdownCoordinator;
     private final Object monitor = new Object();
     private final Map<String, SessionState> sessions = new HashMap<>();
     private final Map<String, Integer> connectionsByUser = new HashMap<>();
     private final Map<String, Integer> connectionsByIp = new HashMap<>();
 
-    public LiveTailSubscriptionRegistry(LiveTailProperties properties, MeterRegistry meterRegistry) {
+    public LiveTailSubscriptionRegistry(
+        LiveTailProperties properties,
+        MeterRegistry meterRegistry,
+        GracefulShutdownCoordinator shutdownCoordinator
+    ) {
         this.properties = properties;
+        this.shutdownCoordinator = shutdownCoordinator;
 
         Gauge.builder("livetail.sessions.active", this, LiveTailSubscriptionRegistry::activeSessionCount)
             .description("Active authenticated live-tail WebSocket sessions")
@@ -49,6 +61,9 @@ public class LiveTailSubscriptionRegistry {
     ) {
         if (isBlank(sessionId) || principal == null || isBlank(principal.userId())) {
             return SessionRegistration.reject(SessionRejection.INVALID_SESSION);
+        }
+        if (!shutdownCoordinator.isAcceptingTraffic()) {
+            return SessionRegistration.reject(SessionRejection.SHUTTING_DOWN);
         }
 
         String ip = isBlank(remoteAddress) ? "unknown" : remoteAddress;
@@ -99,6 +114,9 @@ public class LiveTailSubscriptionRegistry {
     ) {
         if (isBlank(sessionId) || isBlank(subscriptionId) || isBlank(projectId) || filter == null) {
             return SubscriptionRegistration.reject(SubscriptionRejection.INVALID_SUBSCRIPTION);
+        }
+        if (!shutdownCoordinator.isAcceptingTraffic()) {
+            return SubscriptionRegistration.reject(SubscriptionRejection.SHUTTING_DOWN);
         }
 
         synchronized (monitor) {
@@ -164,6 +182,29 @@ public class LiveTailSubscriptionRegistry {
         synchronized (monitor) {
             SessionState state = sessions.get(sessionId);
             return state == null ? 0 : state.subscriptions.size();
+        }
+    }
+
+    /**
+     * Clears application-side session state before the WebSocket transport is
+     * stopped by Spring. The transport owns the actual socket close; this
+     * method makes authorization and metrics state converge immediately.
+     */
+    @EventListener
+    public void onContextClosed(ContextClosedEvent event) {
+        int closedSessions = closeAllSessions();
+        if (closedSessions > 0) {
+            log.info("Cleared {} live-tail sessions during graceful shutdown", closedSessions);
+        }
+    }
+
+    public int closeAllSessions() {
+        synchronized (monitor) {
+            int closedSessions = sessions.size();
+            sessions.clear();
+            connectionsByUser.clear();
+            connectionsByIp.clear();
+            return closedSessions;
         }
     }
 
@@ -256,7 +297,8 @@ public class LiveTailSubscriptionRegistry {
         INVALID_SESSION,
         DUPLICATE_SESSION,
         USER_CONNECTION_LIMIT,
-        IP_CONNECTION_LIMIT
+        IP_CONNECTION_LIMIT,
+        SHUTTING_DOWN
     }
 
     public record SessionRegistration(boolean accepted, SessionRejection rejection) {
@@ -273,7 +315,8 @@ public class LiveTailSubscriptionRegistry {
         INVALID_SUBSCRIPTION,
         UNKNOWN_SESSION,
         DUPLICATE_SUBSCRIPTION,
-        SUBSCRIPTION_LIMIT
+        SUBSCRIPTION_LIMIT,
+        SHUTTING_DOWN
     }
 
     public record SubscriptionRegistration(boolean accepted, SubscriptionRejection rejection) {
