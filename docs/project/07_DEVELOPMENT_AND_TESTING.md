@@ -164,7 +164,12 @@ Raw API-key secret may be printed once by an explicit local seed command, never 
 - threshold crossing triggers;
 - cooldown prevents duplicate occurrence;
 - cooldown expiry permits new trigger;
-- delivery failure persists occurrence.
+- rule filters and numeric ranges are validated and normalized;
+- duplicate project-local rule names are rejected;
+- delivery failure persists occurrence with sanitized attempt history;
+- acknowledgement records actor/time once and writes an audit event;
+- retry updates the same occurrence and writes an audit event;
+- alert rule and occurrence lookups remain project-scoped.
 
 ---
 

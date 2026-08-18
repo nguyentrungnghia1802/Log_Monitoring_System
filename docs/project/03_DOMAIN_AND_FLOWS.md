@@ -145,18 +145,16 @@ Archived rules are not evaluated.
 
 ## 6. Alert occurrence lifecycle
 
-Recommended values:
+V1 stores incident acknowledgement separately from notification delivery:
 
-```text
-triggered
-notifying
-notified
-delivery_failed
-acknowledged
-resolved
-```
+- occurrence status: `TRIGGERED` or `ACKNOWLEDGED`;
+- delivery status: `PENDING`, `DELIVERED`, or `FAILED`;
+- acknowledgement records the first actor and timestamp and is idempotent;
+- every delivery attempt appends provider, timestamp, outcome, and a sanitized error summary.
 
-V1 does not need automated incident resolution to ship. At minimum it persists trigger and delivery status.
+Explicit notification retry updates the same durable occurrence and writes an
+audit event; it never creates another occurrence. `resolved` is intentionally
+not implemented because V1 has no defined resolution semantics.
 
 ---
 
@@ -330,8 +328,10 @@ Flow:
 6. If threshold is crossed and rule is not in cooldown, create `AlertOccurrence`.
 7. Persist cooldown state.
 8. Send through notification adapter.
-9. Persist delivery result.
+9. Persist sanitized delivery result and append attempt history.
 10. Repeated events during cooldown update metrics but do not create duplicate notification storms.
+11. An operator may acknowledge the occurrence or retry failed delivery; both
+    actions remain project-scoped and audited where they mutate incident state.
 
 ---
 

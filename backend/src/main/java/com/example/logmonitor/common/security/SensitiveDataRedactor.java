@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 public class SensitiveDataRedactor {
 
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
-        "(?i)(\\b(?:password|passwd|secret|token|api[-_]?key|authorization|cookie|private[-_]?key|client[-_]?secret)\\b\\s*[:=]\\s*)([^\\s,;]+)"
+        "(?i)(\\b(?:password|passwd|secret|token|api[-_]?key|access[-_]?token|refresh[-_]?token|webhook[-_]?token|bot[-_]?token|authorization|cookie|private[-_]?key|client[-_]?secret)\\b\\s*[:=]\\s*)([^\\s,;]+)"
     );
     private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)\\bBearer\\s+[^\\s,;]+");
 

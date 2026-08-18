@@ -2,11 +2,13 @@
 
 Last reviewed: 2026-08-18.
 
-The B1 management-authentication and C1–C3 administration slices are
+The B1 management-authentication and C1–C5 administration/operations slices are
 implemented and validated. The browser now restores an HttpOnly refresh-cookie
 session, holds the short access JWT only in memory, protects management routes,
 and supports logout. A guarded local-profile bootstrap creates the first admin
-without direct MongoDB edits. C4 remains the next product-administration slice.
+without direct MongoDB edits. Alert operations now expose validated rule
+configuration, explainable occurrence detail, actor/time acknowledgement,
+sanitized delivery history, and audited idempotent retry.
 
 ## 1. Delivery roadmap
 

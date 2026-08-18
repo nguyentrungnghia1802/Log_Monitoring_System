@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchAlertRules, createAlertRule, toggleAlertRule, deleteAlertRule } from '../../services/api'
+import { fetchProjects } from '../../services/projectApi'
 import type { AlertRule } from '../../types/alert'
 
 export function AlertRulesPage() {
     const queryClient = useQueryClient()
-    const projectId = 'demo-project'
+    const [projectId, setProjectId] = useState('')
     const [showModal, setShowModal] = useState(false)
     const [formData, setFormData] = useState<Partial<AlertRule>>({
         name: '',
@@ -15,11 +16,19 @@ export function AlertRulesPage() {
         windowSeconds: 60,
         threshold: 10,
         cooldownSeconds: 300,
+        eventTypes: [],
     })
+
+    const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects })
+    const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
+    useEffect(() => {
+        if (!projectId && projects.length > 0) setProjectId(projects[0].id)
+    }, [projectId, projects])
 
     const { data: rules = [], isLoading } = useQuery<AlertRule[]>({
         queryKey: ['alert-rules', projectId],
         queryFn: () => fetchAlertRules(projectId),
+        enabled: Boolean(projectId),
     })
 
     const createMutation = useMutation({
@@ -35,6 +44,7 @@ export function AlertRulesPage() {
                 windowSeconds: 60,
                 threshold: 10,
                 cooldownSeconds: 300,
+                eventTypes: [],
             })
         },
     })
@@ -56,7 +66,7 @@ export function AlertRulesPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!formData.name) return
+        if (!formData.name?.trim()) return
         createMutation.mutate(formData)
     }
 
@@ -75,7 +85,15 @@ export function AlertRulesPage() {
                 </button>
             </div>
 
-            {isLoading ? (
+            <label className="block max-w-xl text-sm text-slate-300">
+                Project
+                <select aria-label="Project" value={projectId} onChange={(event) => setProjectId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
+                    {projects.length === 0 && <option value="">No projects available</option>}
+                    {projects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.key})</option>)}
+                </select>
+            </label>
+
+            {projectsQuery.isLoading || isLoading ? (
                 <div className="text-center py-12 text-slate-400">Loading alert rules...</div>
             ) : rules.length === 0 ? (
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-400">
@@ -96,6 +114,7 @@ export function AlertRulesPage() {
                                             Svc: {rule.service || 'All'}
                                         </span>
                                     </div>
+                                    <p className="mt-2 text-xs text-slate-500">Levels: {rule.levels?.join(', ') || 'All'} · Event types: {rule.eventTypes?.join(', ') || 'All'}</p>
                                 </div>
                                 <button
                                     onClick={() => rule.id && toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
@@ -148,7 +167,33 @@ export function AlertRulesPage() {
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                                    maxLength={120}
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs text-slate-400 block mb-1">Levels (comma-separated)</label>
+                                    <input
+                                        aria-label="Levels"
+                                        type="text"
+                                        placeholder="ERROR, WARN"
+                                        value={formData.levels?.join(', ') ?? ''}
+                                        onChange={(e) => setFormData({ ...formData, levels: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) })}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-400 block mb-1">Event types (comma-separated)</label>
+                                    <input
+                                        aria-label="Event types"
+                                        type="text"
+                                        placeholder="QUEUE_CREATE_FAILED"
+                                        value={formData.eventTypes?.join(', ') ?? ''}
+                                        onChange={(e) => setFormData({ ...formData, eventTypes: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) })}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -178,7 +223,10 @@ export function AlertRulesPage() {
                                 <div>
                                     <label className="text-xs text-slate-400 block mb-1">Window (sec)</label>
                                     <input
-                                        type="number"
+                                    type="number"
+                                    aria-label="Window (sec)"
+                                    min={10}
+                                    max={86400}
                                         value={formData.windowSeconds}
                                         onChange={(e) => setFormData({ ...formData, windowSeconds: Number(e.target.value) })}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
@@ -187,7 +235,10 @@ export function AlertRulesPage() {
                                 <div>
                                     <label className="text-xs text-slate-400 block mb-1">Threshold</label>
                                     <input
-                                        type="number"
+                                    type="number"
+                                    aria-label="Threshold"
+                                    min={1}
+                                    max={1000000}
                                         value={formData.threshold}
                                         onChange={(e) => setFormData({ ...formData, threshold: Number(e.target.value) })}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
@@ -196,13 +247,18 @@ export function AlertRulesPage() {
                                 <div>
                                     <label className="text-xs text-slate-400 block mb-1">Cooldown (sec)</label>
                                     <input
-                                        type="number"
+                                    type="number"
+                                    aria-label="Cooldown (sec)"
+                                    min={1}
+                                    max={604800}
                                         value={formData.cooldownSeconds}
                                         onChange={(e) => setFormData({ ...formData, cooldownSeconds: Number(e.target.value) })}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
                                     />
                                 </div>
                             </div>
+
+                            {createMutation.error && <p role="alert" className="text-sm text-red-300">{createMutation.error.message}</p>}
 
                             <div className="flex justify-end gap-3 pt-3">
                                 <button

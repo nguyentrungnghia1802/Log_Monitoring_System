@@ -12,4 +12,5 @@ public interface AlertRuleRepository extends MongoRepository<AlertRule, String> 
     List<AlertRule> findByProjectIdAndEnabled(String projectId, boolean enabled);
     List<AlertRule> findByEnabled(boolean enabled);
     Optional<AlertRule> findByIdAndProjectId(String id, String projectId);
+    Optional<AlertRule> findByProjectIdAndNameIgnoreCase(String projectId, String name);
 }

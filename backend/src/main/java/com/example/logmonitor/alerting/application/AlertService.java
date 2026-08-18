@@ -4,40 +4,59 @@ import com.example.logmonitor.alerting.domain.AlertOccurrence;
 import com.example.logmonitor.alerting.domain.AlertOccurrenceRepository;
 import com.example.logmonitor.alerting.domain.AlertRule;
 import com.example.logmonitor.alerting.domain.AlertRuleRepository;
+import com.example.logmonitor.audit.application.AuditService;
+import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.notification.domain.AlertNotification;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import com.example.logmonitor.persistence.LogEventDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class AlertService {
 
-    private static final Logger log = LoggerFactory.getLogger(AlertService.class);
+    private static final int MAX_NAME_LENGTH = 120;
+    private static final int MAX_FILTER_LENGTH = 100;
+    private static final int MAX_FILTER_VALUES = 20;
+    private static final long MIN_WINDOW_SECONDS = 10;
+    private static final long MAX_WINDOW_SECONDS = 86_400;
+    private static final long MAX_THRESHOLD = 1_000_000;
+    private static final long MIN_COOLDOWN_SECONDS = 1;
+    private static final long MAX_COOLDOWN_SECONDS = 604_800;
+    private static final int MAX_PROVIDER_ERROR_LENGTH = 240;
+    private static final Set<String> ALLOWED_LEVELS = Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL");
 
     private final AlertRuleRepository ruleRepository;
     private final AlertOccurrenceRepository occurrenceRepository;
     private final MongoTemplate mongoTemplate;
     private final AlertNotificationSender notificationSender;
+    private final AuditService auditService;
+    private final SensitiveDataRedactor redactor;
 
     public AlertService(
         AlertRuleRepository ruleRepository,
         AlertOccurrenceRepository occurrenceRepository,
         MongoTemplate mongoTemplate,
-        AlertNotificationSender notificationSender
+        AlertNotificationSender notificationSender,
+        AuditService auditService,
+        SensitiveDataRedactor redactor
     ) {
         this.ruleRepository = ruleRepository;
         this.occurrenceRepository = occurrenceRepository;
         this.mongoTemplate = mongoTemplate;
         this.notificationSender = notificationSender;
+        this.auditService = auditService;
+        this.redactor = redactor;
     }
 
     public List<AlertRule> getRules(String projectId) {
@@ -45,6 +64,8 @@ public class AlertService {
     }
 
     public AlertRule createRule(String projectId, AlertRule rule) {
+        normalizeAndValidate(rule);
+        ensureUniqueName(projectId, rule.getName(), null);
         rule.setProjectId(projectId);
         rule.setCreatedAt(Instant.now());
         rule.setUpdatedAt(Instant.now());
@@ -65,6 +86,11 @@ public class AlertService {
             if (updated.getWindowSeconds() > 0) rule.setWindowSeconds(updated.getWindowSeconds());
             if (updated.getThreshold() > 0) rule.setThreshold(updated.getThreshold());
             if (updated.getCooldownSeconds() > 0) rule.setCooldownSeconds(updated.getCooldownSeconds());
+            if (updated.getWindowSeconds() < 0 || updated.getThreshold() < 0 || updated.getCooldownSeconds() < 0) {
+                throw validation("INVALID_ALERT_RULE_RANGE", "Window, threshold, and cooldown cannot be negative");
+            }
+            normalizeAndValidate(rule);
+            ensureUniqueName(projectId, rule.getName(), ruleId);
             rule.setUpdatedAt(Instant.now());
             return ruleRepository.save(rule);
         });
@@ -160,18 +186,39 @@ public class AlertService {
         occurrence.setAttemptCount(occurrence.getAttemptCount() + 1);
         occurrence.setLastAttemptAt(Instant.now());
 
-        AlertNotificationSender.NotificationResult result = notificationSender.send(notification);
+        AlertNotificationSender.NotificationResult result;
+        try {
+            result = notificationSender.send(notification);
+        } catch (RuntimeException exception) {
+            result = new AlertNotificationSender.NotificationResult(
+                false,
+                notificationSender.getClass().getSimpleName(),
+                exception.getMessage()
+            );
+        }
+
+        Instant attemptedAt = occurrence.getLastAttemptAt();
+        String provider = sanitizeProvider(result.provider());
+        String safeError = result.success() ? null : sanitizeProviderError(result.errorDetails());
 
         if (result.success()) {
             occurrence.setDeliveryStatus("DELIVERED");
             occurrence.setLastError(null);
         } else {
             occurrence.setDeliveryStatus("FAILED");
-            occurrence.setLastError(result.errorDetails());
+            occurrence.setLastError(safeError);
         }
 
+        occurrence.addDeliveryAttempt(new AlertOccurrence.DeliveryAttempt(
+            occurrence.getAttemptCount(),
+            provider,
+            attemptedAt,
+            result.success() ? "DELIVERED" : "FAILED",
+            safeError
+        ));
+
         occurrenceRepository.save(occurrence);
-        return result;
+        return new AlertNotificationSender.NotificationResult(result.success(), provider, safeError);
     }
 
     public List<AlertOccurrence> getAlerts(String projectId) {
@@ -182,18 +229,131 @@ public class AlertService {
         return occurrenceRepository.findByIdAndProjectId(alertId, projectId);
     }
 
-    public Optional<AlertOccurrence> acknowledgeAlert(String projectId, String alertId) {
+    public Optional<AlertOccurrence> acknowledgeAlert(
+        String projectId,
+        String alertId,
+        String actor,
+        String organizationId
+    ) {
         return occurrenceRepository.findByIdAndProjectId(alertId, projectId).map(occ -> {
-            occ.setStatus("ACKNOWLEDGED");
-            return occurrenceRepository.save(occ);
+            if (!"ACKNOWLEDGED".equals(occ.getStatus())) {
+                occ.setStatus("ACKNOWLEDGED");
+                occ.setAcknowledgedAt(Instant.now());
+                occ.setAcknowledgedBy(actor);
+                occurrenceRepository.save(occ);
+                auditService.logAction(actor, organizationId, projectId, "ACKNOWLEDGE", "ALERT_OCCURRENCE",
+                    occ.getId(), "Alert occurrence acknowledged");
+            }
+            return occ;
         });
     }
 
-    public Optional<AlertOccurrence> retryNotification(String projectId, String alertId) {
+    public Optional<AlertOccurrence> retryNotification(
+        String projectId,
+        String alertId,
+        String actor,
+        String organizationId
+    ) {
         return occurrenceRepository.findByIdAndProjectId(alertId, projectId).map(occ -> {
             AlertRule rule = ruleRepository.findByIdAndProjectId(occ.getRuleId(), projectId).orElse(null);
             dispatchNotification(occ, rule);
+            auditService.logAction(actor, organizationId, projectId, "RETRY_NOTIFICATION", "ALERT_OCCURRENCE",
+                occ.getId(), "Alert notification delivery retried");
             return occ;
         });
+    }
+
+    private void normalizeAndValidate(AlertRule rule) {
+        String name = normalizeRequired(rule.getName());
+        if (name == null || name.length() > MAX_NAME_LENGTH) {
+            throw validation("INVALID_ALERT_RULE_NAME", "Rule name must contain 1 to 120 characters");
+        }
+        rule.setName(name);
+        rule.setEnvironment(normalizeOptional(rule.getEnvironment(), "environment"));
+        rule.setService(normalizeOptional(rule.getService(), "service"));
+        rule.setLevels(normalizeLevels(rule.getLevels()));
+        rule.setEventTypes(normalizeFilterValues(rule.getEventTypes(), "event type"));
+
+        if (rule.getWindowSeconds() < MIN_WINDOW_SECONDS || rule.getWindowSeconds() > MAX_WINDOW_SECONDS) {
+            throw validation("INVALID_ALERT_WINDOW", "Window must be between 10 and 86400 seconds");
+        }
+        if (rule.getThreshold() < 1 || rule.getThreshold() > MAX_THRESHOLD) {
+            throw validation("INVALID_ALERT_THRESHOLD", "Threshold must be between 1 and 1000000 events");
+        }
+        if (rule.getCooldownSeconds() < MIN_COOLDOWN_SECONDS || rule.getCooldownSeconds() > MAX_COOLDOWN_SECONDS) {
+            throw validation("INVALID_ALERT_COOLDOWN", "Cooldown must be between 1 and 604800 seconds");
+        }
+    }
+
+    private void ensureUniqueName(String projectId, String name, String currentRuleId) {
+        ruleRepository.findByProjectIdAndNameIgnoreCase(projectId, name)
+            .filter(existing -> currentRuleId == null || !currentRuleId.equals(existing.getId()))
+            .ifPresent(existing -> {
+                throw new AlertOperationException(AlertOperationException.Kind.CONFLICT,
+                    "ALERT_RULE_NAME_CONFLICT", "An alert rule with this name already exists in the project");
+            });
+    }
+
+    private List<String> normalizeLevels(List<String> levels) {
+        List<String> normalized = new ArrayList<>(normalizeFilterValues(levels, "level").stream()
+            .map(value -> value.toUpperCase(Locale.ROOT))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
+        if (!ALLOWED_LEVELS.containsAll(normalized)) {
+            throw validation("INVALID_ALERT_LEVEL", "Levels must be TRACE, DEBUG, INFO, WARN, ERROR, or FATAL");
+        }
+        return normalized;
+    }
+
+    private List<String> normalizeFilterValues(List<String> values, String label) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        if (values.size() > MAX_FILTER_VALUES) {
+            throw validation("INVALID_ALERT_FILTER", "At most 20 " + label + " values are allowed");
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String value : values) {
+            String item = normalizeRequired(value);
+            if (item == null || item.length() > MAX_FILTER_LENGTH) {
+                throw validation("INVALID_ALERT_FILTER", "Each " + label + " must contain 1 to 100 characters");
+            }
+            normalized.add(item);
+        }
+        return new ArrayList<>(normalized);
+    }
+
+    private String normalizeOptional(String value, String label) {
+        String normalized = normalizeRequired(value);
+        if (normalized != null && normalized.length() > MAX_FILTER_LENGTH) {
+            throw validation("INVALID_ALERT_FILTER", "Rule " + label + " must contain at most 100 characters");
+        }
+        return normalized;
+    }
+
+    private String normalizeRequired(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String sanitizeProvider(String provider) {
+        String safe = redactor.redactText(provider == null ? "unknown" : provider).trim();
+        return safe.substring(0, Math.min(safe.length(), MAX_FILTER_LENGTH));
+    }
+
+    private String sanitizeProviderError(String error) {
+        String safe = redactor.redactText(error == null ? "Notification provider failed" : error)
+            .replaceAll("[\\r\\n\\t]+", " ")
+            .trim();
+        if (safe.isEmpty()) {
+            safe = "Notification provider failed";
+        }
+        return safe.substring(0, Math.min(safe.length(), MAX_PROVIDER_ERROR_LENGTH));
+    }
+
+    private AlertOperationException validation(String code, String message) {
+        return new AlertOperationException(AlertOperationException.Kind.VALIDATION, code, message);
     }
 }
