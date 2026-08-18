@@ -92,4 +92,11 @@ class SystemStatusEndpointTest {
         org.junit.jupiter.api.Assertions.assertNotNull(meterRegistry.find("jvm.memory.used").gauge());
         org.junit.jupiter.api.Assertions.assertNotNull(meterRegistry.find("process.cpu.usage").gauge());
     }
+
+    @Test
+    void healthDashboardRequiresAnOrganizationAdministrator() throws Exception {
+        mockMvc.perform(get("/api/v1/system/health-dashboard"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
 }

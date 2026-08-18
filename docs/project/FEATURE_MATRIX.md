@@ -17,6 +17,7 @@ exists but the contract, security boundary, or validation is incomplete.
 | FR-AUTH-001/002 — login, revocable sessions, JWT and project membership checks | `AuthenticationService`, `JwtService`, `AuthSession`, `AuthContext`, `ProjectAuthorizationService`, `ProjectSecurityInterceptor` | `AuthControllerTest`, `JwtServiceTest`, `AuthFlow.test.tsx`, `ProjectAuthorizationServiceTest`, `Phase9SecurityTest` | [x] |
 | FR-AUTH-004/005 — hashed API-key creation and revocation | `ApiKeyService`, `ApiKeyController`, `ApiKeyAuthenticationFilter` | `Phase9SecurityTest`, `ApiKeyServiceTest` | [x] |
 | FR-OBS-001/002/003/004 — health, Prometheus, ingestion, and platform metrics | Actuator, `SystemStatusController`, queue/worker/persistence/Mongo/alert metrics | `SystemStatusEndpointTest`, `MongoCommandMetricsIntegrationTest`, queue/worker/persistence/alert tests | [x] |
+| FR-OBS-005 — operator platform health dashboard | `SystemStatusController`, `PlatformHealthPage`, `OperatorRoute` | `SystemStatusControllerTest`, `PlatformHealthPage.test.tsx`, `OperatorRoute.test.tsx` | [x] |
 | Cross-project nested alert isolation | `AlertRuleRepository`, `AlertOccurrenceRepository`, `AlertService` use `(id, projectId)` lookups | `Phase9SecurityTest.doesNotExposeForeignProjectNestedAlertResources` | [x] |
 | Management project/API-key lifecycle | `ProjectController`, `ApiKeyController`, `ProjectManagementService`, `ApiKeysPage` | `ProjectControllerTest`, `Phase9SecurityTest`, `ApiKeysPage.test.tsx` | [~] |
 

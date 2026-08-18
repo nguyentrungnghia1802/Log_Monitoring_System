@@ -182,6 +182,11 @@ names in `docs/project/02_SYSTEM_ARCHITECTURE.md`, including
 Spring Boot; application metrics are low-cardinality counters, gauges,
 summaries, and timers.
 
+The management console reads `GET /api/v1/system/health-dashboard`, which is
+restricted to active organization administrators. It returns cumulative
+signals and readiness/dependency state; the UI computes per-second rates from
+successive snapshots and refreshes every five seconds.
+
 ---
 
 ## 7. Alerting on the monitoring platform

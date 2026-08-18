@@ -538,6 +538,7 @@ Do not expose a destination where the browser can subscribe to an arbitrary proj
 | GET | `/actuator/health/liveness` | Process liveness |
 | GET | `/actuator/health/readiness` | Dependency/readiness |
 | GET | `/actuator/prometheus` | Prometheus metrics; protected at infrastructure edge |
+| GET | `/api/v1/system/health-dashboard` | Organization-admin platform health snapshot |
 
 Optional custom operational endpoint:
 
