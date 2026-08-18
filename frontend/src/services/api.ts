@@ -49,6 +49,10 @@ export async function fetchAlerts(projectId: string): Promise<AlertOccurrence[]>
     return apiRequest<AlertOccurrence[]>(`/projects/${projectId}/alerts`)
 }
 
+export async function fetchAlertById(projectId: string, alertId: string): Promise<AlertOccurrence> {
+    return apiRequest<AlertOccurrence>(`/projects/${projectId}/alerts/${alertId}`)
+}
+
 export async function acknowledgeAlert(projectId: string, alertId: string): Promise<AlertOccurrence> {
     return apiRequest<AlertOccurrence>(`/projects/${projectId}/alerts/${alertId}/acknowledge`, { method: 'POST' })
 }

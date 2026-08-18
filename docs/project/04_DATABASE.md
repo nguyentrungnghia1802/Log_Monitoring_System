@@ -87,7 +87,6 @@ until expiration to preserve replay rejection without retaining raw secrets.
 ```json
 {
   "_id": "ObjectId",
-  "organizationId": "ObjectId",
   "projectId": "ObjectId",
   "apiKeyId": "ObjectId",
 
@@ -183,7 +182,6 @@ FATAL.
 ```json
 {
   "_id": "ObjectId",
-  "organizationId": "ObjectId",
   "projectId": "ObjectId",
   "name": "production-api",
   "publicId": "ak_01...",
@@ -217,27 +215,16 @@ a Mongo write for every accepted event.
   "projectId": "ObjectId",
 
   "name": "Payment error spike",
-  "status": "enabled",
-
-  "filter": {
-    "environment": "production",
-    "service": "payment-service",
-    "levels": ["ERROR"],
-    "eventTypes": ["PAYMENT_FAILED"]
-  },
+  "enabled": true,
+  "environment": "production",
+  "service": "payment-service",
+  "levels": ["ERROR"],
+  "eventTypes": ["PAYMENT_FAILED"],
 
   "windowSeconds": 60,
   "threshold": 100,
   "cooldownSeconds": 600,
 
-  "notificationChannels": [
-    {
-      "type": "telegram",
-      "configurationRef": "telegram-main"
-    }
-  ],
-
-  "lastTriggeredAt": null,
   "cooldownUntil": null,
 
   "createdAt": "ISODate",
@@ -254,11 +241,11 @@ Provider secrets must not live inside freely readable rule documents.
 ```json
 {
   "_id": "ObjectId",
-  "organizationId": "ObjectId",
   "projectId": "ObjectId",
   "ruleId": "ObjectId",
+  "ruleName": "Payment error spike",
 
-  "status": "notified",
+  "status": "ACKNOWLEDGED",
   "triggeredAt": "ISODate",
   "windowStart": "ISODate",
   "windowEnd": "ISODate",
@@ -266,18 +253,28 @@ Provider secrets must not live inside freely readable rule documents.
   "observedValue": 214,
   "threshold": 100,
 
-  "delivery": {
-    "channelType": "telegram",
-    "status": "sent",
-    "attemptCount": 1,
-    "lastAttemptAt": "ISODate",
-    "lastErrorCode": null
-  },
+  "deliveryStatus": "DELIVERED",
+  "attemptCount": 1,
+  "lastAttemptAt": "ISODate",
+  "lastError": null,
+  "deliveryAttempts": [
+    {
+      "attemptNumber": 1,
+      "provider": "telegram",
+      "attemptedAt": "ISODate",
+      "status": "DELIVERED",
+      "errorSummary": null
+    }
+  ],
 
   "acknowledgedAt": null,
   "acknowledgedBy": null
 }
 ```
+
+Older occurrences without `deliveryAttempts` remain readable as an empty
+history. Provider errors are redacted, flattened, and length-bounded before
+persistence. Occurrences are always queried by `(id, projectId)`.
 
 ---
 

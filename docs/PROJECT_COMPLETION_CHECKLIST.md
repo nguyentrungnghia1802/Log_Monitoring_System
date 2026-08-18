@@ -1,6 +1,6 @@
 # Centralized Log Monitoring System — Master Completion Checklist
 
-Last prepared: 2026-08-02
+Last prepared: 2026-08-18
 
 ## 1. Purpose
 
@@ -624,21 +624,37 @@ tests cover the UI payload and operator mutation rejection.
 
 ### Tasks
 
-- [ ] validate rule filter combinations;
-- [ ] validate window/threshold/cooldown ranges;
-- [ ] prevent duplicate or conflicting rules where applicable;
-- [ ] add occurrence detail view;
-- [ ] acknowledgement actor/time;
-- [ ] delivery status/attempt history;
-- [ ] audited retry;
-- [ ] prevent retry from creating a second occurrence;
-- [ ] optional resolve state only if product semantics are defined;
-- [ ] provider error sanitization;
-- [ ] alert rule and occurrence project isolation.
+- [x] validate rule filter combinations;
+- [x] validate window/threshold/cooldown ranges;
+- [x] prevent duplicate or conflicting rules where applicable;
+- [x] add occurrence detail view;
+- [x] acknowledgement actor/time;
+- [x] delivery status/attempt history;
+- [x] audited retry;
+- [x] prevent retry from creating a second occurrence;
+- [x] optional resolve state only if product semantics are defined;
+- [x] provider error sanitization;
+- [x] alert rule and occurrence project isolation.
 
 ### Exit criteria
 
-- [ ] Operators can understand why an alert triggered and whether notification delivery succeeded.
+- [x] Operators can understand why an alert triggered and whether notification delivery succeeded.
+
+Evidence (2026-08-18): `AlertService` normalizes bounded filter lists, validates
+level/window/threshold/cooldown values, and rejects case-insensitive duplicate
+rule names within a project. `AlertOccurrence` now stores first acknowledgement
+actor/time plus a backward-compatible delivery-attempt history. Provider names
+and errors are redacted and length-bounded before persistence, including thrown
+adapter failures. Acknowledgement and retry write organization/project-scoped
+audit events; retry dispatches and saves the existing occurrence only. The
+React alert pages select an authorized project, expose rule filters and numeric
+bounds, and show occurrence trigger window/value, acknowledgement, and attempt
+history. `resolved` remains intentionally absent because no V1 resolution
+semantics are defined. `AlertServiceTest`, `AlertsPage.test.tsx`,
+`AlertRulesPage.test.tsx`, and the existing `Phase9SecurityTest` cover these
+behaviors and project-scoped nested lookups. Validation passed with backend
+`clean test` and `build` across the application, Java SDK, example, and starter;
+frontend lint/typecheck, 12/12 Vitest tests, and production build also passed.
 
 ---
 

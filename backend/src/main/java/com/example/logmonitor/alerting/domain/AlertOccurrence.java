@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document(collection = "alert_occurrences")
 public class AlertOccurrence {
@@ -50,6 +52,15 @@ public class AlertOccurrence {
 
     @Field("last_error")
     private String lastError;
+
+    @Field("acknowledged_at")
+    private Instant acknowledgedAt;
+
+    @Field("acknowledged_by")
+    private String acknowledgedBy;
+
+    @Field("delivery_attempts")
+    private List<DeliveryAttempt> deliveryAttempts = new ArrayList<>();
 
     public AlertOccurrence() {}
 
@@ -113,4 +124,33 @@ public class AlertOccurrence {
 
     public String getLastError() { return lastError; }
     public void setLastError(String lastError) { this.lastError = lastError; }
+
+    public Instant getAcknowledgedAt() { return acknowledgedAt; }
+    public void setAcknowledgedAt(Instant acknowledgedAt) { this.acknowledgedAt = acknowledgedAt; }
+
+    public String getAcknowledgedBy() { return acknowledgedBy; }
+    public void setAcknowledgedBy(String acknowledgedBy) { this.acknowledgedBy = acknowledgedBy; }
+
+    public List<DeliveryAttempt> getDeliveryAttempts() {
+        if (deliveryAttempts == null) {
+            deliveryAttempts = new ArrayList<>();
+        }
+        return deliveryAttempts;
+    }
+
+    public void setDeliveryAttempts(List<DeliveryAttempt> deliveryAttempts) {
+        this.deliveryAttempts = deliveryAttempts == null ? new ArrayList<>() : new ArrayList<>(deliveryAttempts);
+    }
+
+    public void addDeliveryAttempt(DeliveryAttempt attempt) {
+        getDeliveryAttempts().add(attempt);
+    }
+
+    public record DeliveryAttempt(
+        int attemptNumber,
+        String provider,
+        Instant attemptedAt,
+        String status,
+        String errorSummary
+    ) {}
 }

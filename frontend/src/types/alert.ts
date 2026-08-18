@@ -30,4 +30,15 @@ export interface AlertOccurrence {
     attemptCount: number
     lastAttemptAt?: string
     lastError?: string
+    acknowledgedAt?: string
+    acknowledgedBy?: string
+    deliveryAttempts: AlertDeliveryAttempt[]
+}
+
+export interface AlertDeliveryAttempt {
+    attemptNumber: number
+    provider: string
+    attemptedAt: string
+    status: 'DELIVERED' | 'FAILED'
+    errorSummary?: string
 }

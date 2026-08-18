@@ -375,18 +375,21 @@ Create example:
 ```json
 {
   "name": "Queue error spike",
-  "filter": {
-    "environment": "production",
-    "service": "queue-service",
-    "levels": ["ERROR"],
-    "eventTypes": ["QUEUE_CREATE_FAILED"]
-  },
+  "environment": "production",
+  "service": "queue-service",
+  "levels": ["ERROR"],
+  "eventTypes": ["QUEUE_CREATE_FAILED"],
   "windowSeconds": 60,
   "threshold": 50,
-  "cooldownSeconds": 600,
-  "notificationChannels": ["telegram-main"]
+  "cooldownSeconds": 600
 }
 ```
+
+Names are unique within a project, case-insensitively. Window is `10..86400`
+seconds, threshold is `1..1000000`, cooldown is `1..604800` seconds, and level
+filters accept `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, or `FATAL`. Invalid
+rules return `422` with a stable alert validation code; a duplicate name returns
+`409 ALERT_RULE_NAME_CONFLICT`.
 
 ---
 
@@ -398,6 +401,13 @@ Create example:
 | GET | `/api/v1/projects/:projectId/alerts/:alertId` | Detail |
 | POST | `/api/v1/projects/:projectId/alerts/:alertId/acknowledge` | Acknowledge |
 | POST | `/api/v1/projects/:projectId/alerts/:alertId/retry-notification` | Explicit audited retry where allowed |
+
+Occurrence detail includes `observedValue`, `threshold`, `windowStart`,
+`windowEnd`, `acknowledgedAt`, `acknowledgedBy`, current delivery fields, and
+`deliveryAttempts[]`. Each attempt contains an attempt number, provider,
+timestamp, `DELIVERED|FAILED` status, and optional sanitized `errorSummary`.
+Acknowledgement is idempotent. Retry appends an attempt to the same occurrence
+and never creates a second occurrence.
 
 ---
 
