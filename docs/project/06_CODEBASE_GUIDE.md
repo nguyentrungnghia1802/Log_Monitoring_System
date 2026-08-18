@@ -180,6 +180,28 @@ Rules:
 
 ---
 
+## 7.1 Java source SDK layout
+
+The source SDK is intentionally dependency-free and lives outside the Spring
+application under `sdk/log-monitoring-java-sdk/`:
+
+```text
+sdk/log-monitoring-java-sdk/src/main/java/com/example/logmonitor/sdk/
+|-- LogEventPayload.java
+|-- LogMonitoringClientConfig.java
+|-- LogMonitoringClient.java
+|-- LogSubmissionOutcome.java
+\-- LogSubmissionResult.java
+```
+
+`LogMonitoringClient` owns a fixed-capacity `ArrayBlockingQueue`, a named
+single worker, bounded batch formation, HTTP retry classification, and a
+bounded close flush. `LogSubmissionResult` is callback-based because the
+public `log`/`error` methods return before server admission. `202` is exposed
+as `ACCEPTED_BY_SERVER_ADMISSION`, never as durable persistence.
+
+---
+
 ## 8. Error handling
 
 Backend stable error type concept:

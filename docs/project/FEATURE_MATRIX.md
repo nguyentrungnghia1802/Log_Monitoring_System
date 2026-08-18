@@ -19,6 +19,7 @@ exists but the contract, security boundary, or validation is incomplete.
 | FR-OBS-001/002/003/004 — health, Prometheus, ingestion, and platform metrics | Actuator, `SystemStatusController`, queue/worker/persistence/Mongo/alert metrics | `SystemStatusEndpointTest`, `MongoCommandMetricsIntegrationTest`, queue/worker/persistence/alert tests | [x] |
 | FR-OBS-005 — operator platform health dashboard | `SystemStatusController`, `PlatformHealthPage`, `OperatorRoute` | `SystemStatusControllerTest`, `PlatformHealthPage.test.tsx`, `OperatorRoute.test.tsx` | [x] |
 | FR-OBS-006 — external uptime/readiness monitoring and platform alerts | `.github/workflows/external-platform-readiness.yml`, `ops/monitoring/external/check-readiness.ps1`, Prometheus scrape/rule examples | PowerShell syntax validation, YAML structure review, `git diff --check` | [x] |
+| Java SDK F1 — bounded structured ingestion client | `sdk/log-monitoring-java-sdk/src/main/java/com/example/logmonitor/sdk` and `sdk/log-monitoring-java-sdk/README.md` | `LogMonitoringClientTest` (12 tests: fields, bounds, batching, queue, 202, auth, 429/503, timeout, flush, drop) | [x] |
 | Cross-project nested alert isolation | `AlertRuleRepository`, `AlertOccurrenceRepository`, `AlertService` use `(id, projectId)` lookups | `Phase9SecurityTest.doesNotExposeForeignProjectNestedAlertResources` | [x] |
 | Management project/API-key lifecycle | `ProjectController`, `ApiKeyController`, `ProjectManagementService`, `ApiKeysPage` | `ProjectControllerTest`, `Phase9SecurityTest`, `ApiKeysPage.test.tsx` | [~] |
 

@@ -123,12 +123,10 @@ pattern scan found no AWS/GitHub/OpenAI/Slack token or private-key material;
 remaining password/secret matches are configuration keys, placeholders, tests,
 or credential-handling code rather than deployable credentials.
 
-Build evidence: `backend/:build` and the multi-module `backend/assemble` pass
-after configuring the Spring Boot starter module to publish a library JAR.
-The aggregate `backend/build` is still blocked by Gradle being unable to delete
-an open generated `sdk/log-monitoring-java-sdk/build/test-results/.../output.bin`
-while running that SDK test task; no repository file was deleted to work around
-the lock.
+Build evidence (2026-08-18): the multi-module `backend/clean test --no-parallel`
+and `backend/build --no-parallel` pass, including the Java SDK, demo, and Spring
+Boot starter modules. The earlier generated-test-output lock is no longer
+present.
 
 ### Reported Phase 3 items to verify
 
@@ -380,9 +378,9 @@ unknown/incorrect/revoked keys, last-used throttling, rotation, and foreign-scop
 revoke; `ApiKeyAuthenticationFilterTest` covers the 429 per-key burst boundary;
 `Phase9SecurityTest` covers admin CRUD, metadata-only list, old-key invalidation,
 foreign project authorization, organization-document scope, and a payload
-project selector that cannot change the key scope. The full backend application
-`test` now passed 77/77 tests in 24 suites with no failures, and backend `build`
-passed with the pre-existing locked SDK test task excluded.
+project selector that cannot change the key scope. The canonical multi-module
+backend `clean test --no-parallel` and `build --no-parallel` gates now pass with
+the SDK test task included.
 
 ---
 
@@ -1050,48 +1048,60 @@ that cannot be performed from this local checkout.
 
 ### Public responsibilities
 
-- [ ] configure endpoint;
-- [ ] configure API key;
-- [ ] configure service/environment;
-- [ ] send structured event;
-- [ ] convert `Throwable` safely;
-- [ ] include trace/request IDs;
-- [ ] include bounded context/tags;
-- [ ] batch events;
-- [ ] bounded local queue;
-- [ ] bounded retry with exponential backoff and jitter;
-- [ ] handle `Retry-After`;
-- [ ] distinguish retryable and non-retryable HTTP responses;
-- [ ] expose dropped/failed metrics or callbacks;
-- [ ] bounded `close()`/flush;
-- [ ] never claim durable server persistence after `202`.
+- [x] configure endpoint;
+- [x] configure API key;
+- [x] configure service/environment;
+- [x] send structured event;
+- [x] convert `Throwable` safely;
+- [x] include trace/request IDs;
+- [x] include bounded context/tags;
+- [x] batch events;
+- [x] bounded local queue;
+- [x] bounded retry with exponential backoff and jitter;
+- [x] handle `Retry-After`;
+- [x] distinguish retryable and non-retryable HTTP responses;
+- [x] expose dropped/failed metrics or callbacks;
+- [x] bounded `close()`/flush;
+- [x] never claim durable server persistence after `202`.
 
 ### SDK result semantics
 
 At minimum:
 
-- [ ] accepted by server admission;
-- [ ] rejected by local SDK queue;
-- [ ] rejected by server validation/auth;
-- [ ] retry exhausted;
-- [ ] dropped according to policy.
+- [x] accepted by server admission;
+- [x] rejected by local SDK queue;
+- [x] rejected by server validation/auth;
+- [x] retry exhausted;
+- [x] dropped according to policy.
 
 ### Tests
 
-- [ ] default field injection;
-- [ ] exception truncation;
-- [ ] batch formation;
-- [ ] local queue capacity;
-- [ ] 202 handling;
-- [ ] 401/403 non-retry;
-- [ ] 429/503 retry;
-- [ ] timeout retry;
-- [ ] shutdown flush;
-- [ ] no unbounded memory.
+- [x] default field injection;
+- [x] exception truncation;
+- [x] batch formation;
+- [x] local queue capacity;
+- [x] 202 handling;
+- [x] 401/403 non-retry;
+- [x] 429/503 retry;
+- [x] timeout retry;
+- [x] shutdown flush;
+- [x] no unbounded memory.
 
 ### Exit criteria
 
-- [ ] A Java application can integrate without writing custom HTTP/batching/retry code.
+- [x] A Java application can integrate without writing custom HTTP/batching/retry code.
+
+Evidence (2026-08-18): `LogMonitoringClient` now provides endpoint/API-key and
+service/environment configuration, structured `LogEventPayload` submission,
+safe throwable conversion, generated-or-propagated trace/request IDs, bounded
+context/tags, fixed-capacity batching, bounded exponential backoff with jitter,
+integer/RFC 1123 `Retry-After` handling, retry classification, and a callback
+result contract. `LogSubmissionOutcome` distinguishes local queue admission,
+server admission, server rejection, retry exhaustion, and policy drops. The
+client explicitly describes `202` as admission to the server's bounded
+process-memory queue rather than durable persistence. `LogMonitoringClientTest`
+covers 12 in-process HTTP scenarios, and
+`sdk/log-monitoring-java-sdk/README.md` documents the consumer integration.
 
 ---
 
