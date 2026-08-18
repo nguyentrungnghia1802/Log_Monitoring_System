@@ -15,6 +15,9 @@ export function Navigation() {
         { label: 'Organization', path: '/organization' },
         { label: 'Projects', path: '/projects' },
         { label: 'API Keys', path: '/api-keys' },
+        ...(user?.organizationRole === 'ORGANIZATION_ADMIN'
+            ? [{ label: 'System Health', path: '/system-health' }]
+            : []),
     ]
 
     return (

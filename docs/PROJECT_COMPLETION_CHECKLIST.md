@@ -982,22 +982,33 @@ private-network examples with the Prometheus scraper allowlist.
 
 Create an operator-only page showing:
 
-- [ ] ingestion accepted/sec;
-- [ ] ingestion rejected/sec;
-- [ ] queue depth/capacity percentage;
-- [ ] worker activity;
-- [ ] batch size;
-- [ ] MongoDB persistence latency;
-- [ ] persistence failures;
-- [ ] heap/GC summary;
-- [ ] active WebSocket sessions;
-- [ ] live-tail drops;
-- [ ] alert delivery failures;
-- [ ] readiness/dependency state.
+- [x] ingestion accepted/sec;
+- [x] ingestion rejected/sec;
+- [x] queue depth/capacity percentage;
+- [x] worker activity;
+- [x] batch size;
+- [x] MongoDB persistence latency;
+- [x] persistence failures;
+- [x] heap/GC summary;
+- [x] active WebSocket sessions;
+- [x] live-tail drops;
+- [x] alert delivery failures;
+- [x] readiness/dependency state.
 
 ### Exit criteria
 
-- [ ] Platform operators do not need to inspect raw Prometheus output for common incidents.
+- [x] Platform operators do not need to inspect raw Prometheus output for common incidents.
+
+Evidence (2026-08-18): `GET /api/v1/system/health-dashboard` returns a
+low-cardinality operator snapshot for cumulative ingestion/persistence/live-tail/
+alert counters, queue and worker gauges, batch/persistence summaries, JVM and
+CPU signals, and readiness dependency statuses. The endpoint verifies the
+current user is an active `ORGANIZATION_ADMIN`; the frontend `PlatformHealthPage`
+is hidden from non-operators, polls every five seconds, and derives accepted /
+rejected rates from consecutive snapshots. `SystemStatusControllerTest`,
+`OperatorRoute.test.tsx`, and `PlatformHealthPage.test.tsx` cover the boundary
+and dashboard rendering. Frontend gates (`lint`, `typecheck`, `test`, `build`)
+pass.
 
 ---
 

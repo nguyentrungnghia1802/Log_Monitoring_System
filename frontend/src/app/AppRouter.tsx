@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '../auth/ProtectedRoute'
+import { OperatorRoute } from '../auth/OperatorRoute'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { HomePage } from '../pages/HomePage'
 import { LogExplorerPage } from '../pages/logs/LogExplorerPage'
@@ -10,6 +11,7 @@ import { AlertsPage } from '../pages/alerts/AlertsPage'
 import { OrganizationPage } from '../pages/organization/OrganizationPage'
 import { ProjectsPage } from '../pages/projects/ProjectsPage'
 import { ApiKeysPage } from '../pages/apikeys/ApiKeysPage'
+import { PlatformHealthPage } from '../pages/system/PlatformHealthPage'
 
 export function AppRouter() {
   return (
@@ -25,6 +27,9 @@ export function AppRouter() {
           <Route path="/organization" element={<OrganizationPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/api-keys" element={<ApiKeysPage />} />
+          <Route element={<OperatorRoute />}>
+            <Route path="/system-health" element={<PlatformHealthPage />} />
+          </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
