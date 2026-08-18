@@ -490,6 +490,29 @@ Coverage percentage must not replace behavioral test quality.
 12. Confirm cooldown suppresses duplicates.
 13. Verify retention policy is visible.
 
+The source-side implementation is in the sibling `LINE Smart Queue Assistant`
+repository. After a project-scoped staging key has been provisioned, configure
+its environment without committing the secret:
+
+```text
+LOG_MONITORING_ENABLED=true
+LOG_MONITORING_ENDPOINT=https://<monitoring-host>
+LOG_MONITORING_API_KEY=<staging-project-key>
+LOG_MONITORING_ENVIRONMENT=staging
+```
+
+Run the source adapter's admission smoke test from that repository:
+
+```bash
+npm run log-monitoring:verify
+```
+
+The command requires a real staging project/key and only proves `202` server
+admission. It does not claim MongoDB durability. The remaining Log Explorer,
+Live Tail, dashboard, alert notification/cooldown, and key rotation checks
+must be performed against an owner-provisioned running platform; without that
+external state they remain `BLOCKED_EXTERNAL` in the master checklist.
+
 ---
 
 ## 16. Definition of done

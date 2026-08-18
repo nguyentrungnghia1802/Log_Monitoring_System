@@ -57,10 +57,10 @@ class AlertServiceTest {
     }
 
     @Test
-    void triggersAlertWhenThresholdExceededAndNotInCooldown() {
+    void triggersAlertWhenThresholdReachedAndNotInCooldown() {
         AlertRule rule = validRule();
         when(ruleRepository.findByProjectIdAndEnabled("demo-project", true)).thenReturn(List.of(rule));
-        when(mongoTemplate.count(any(Query.class), eq(LogEventDocument.class))).thenReturn(10L);
+        when(mongoTemplate.count(any(Query.class), eq(LogEventDocument.class))).thenReturn(5L);
         when(notificationSender.send(any()))
             .thenReturn(new AlertNotificationSender.NotificationResult(true, "mock", null));
 
@@ -75,6 +75,20 @@ class AlertServiceTest {
     }
 
     @Test
+    void doesNotTriggerAlertBelowThreshold() {
+        AlertRule rule = validRule();
+        when(ruleRepository.findByProjectIdAndEnabled("demo-project", true)).thenReturn(List.of(rule));
+        when(mongoTemplate.count(any(Query.class), eq(LogEventDocument.class))).thenReturn(4L);
+
+        alertService.evaluateRulesForProject("demo-project");
+
+        verify(mongoTemplate).count(any(Query.class), eq(LogEventDocument.class));
+        verifyNoInteractions(occurrenceRepository, notificationSender);
+        verify(ruleRepository, never()).save(any(AlertRule.class));
+        assertEquals(0.0, meterRegistry.counter("alert.triggered").count());
+    }
+
+    @Test
     void suppressesAlertWhenInCooldown() {
         AlertRule rule = validRule();
         rule.setCooldownUntil(Instant.now().plusSeconds(200));
@@ -84,6 +98,22 @@ class AlertServiceTest {
 
         verifyNoInteractions(mongoTemplate);
         verifyNoInteractions(occurrenceRepository);
+    }
+
+    @Test
+    void evaluatesAgainWhenCooldownHasExpired() {
+        AlertRule rule = validRule();
+        rule.setCooldownUntil(Instant.now().minusSeconds(1));
+        when(ruleRepository.findByProjectIdAndEnabled("demo-project", true)).thenReturn(List.of(rule));
+        when(mongoTemplate.count(any(Query.class), eq(LogEventDocument.class))).thenReturn(5L);
+        when(notificationSender.send(any()))
+            .thenReturn(new AlertNotificationSender.NotificationResult(true, "mock", null));
+
+        alertService.evaluateRulesForProject("demo-project");
+
+        verify(occurrenceRepository, times(2)).save(any());
+        verify(ruleRepository).save(rule);
+        assertEquals(1.0, meterRegistry.counter("alert.triggered").count());
     }
 
     @Test

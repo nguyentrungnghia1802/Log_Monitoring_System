@@ -105,6 +105,24 @@ class LogEventPersistenceServiceTest {
         assertEquals(1L, meterRegistry.timer("ingestion.persistence.duration").count());
     }
 
+    @Test
+    void restoresInterruptAndStopsRetryBackoffWhenThreadIsInterrupted() {
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, LogEventDocument.class))
+            .thenThrow(new RuntimeException("temporary Mongo outage"));
+        Thread.currentThread().interrupt();
+
+        try {
+            RuntimeException exception = assertThrows(RuntimeException.class, () -> persistenceService.persist(events));
+
+            assertTrue(Thread.currentThread().isInterrupted());
+            assertEquals("Interrupted during persistence retry backoff", exception.getMessage());
+            verify(mongoTemplate).bulkOps(BulkOperations.BulkMode.UNORDERED, LogEventDocument.class);
+            assertEquals(0.0, meterRegistry.counter("ingestion.persistence.failures").count());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     private LogEvent createEvent(String message) {
         return LogEvent.of(
             new IngestionRequest(
