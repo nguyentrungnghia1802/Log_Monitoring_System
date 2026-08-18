@@ -34,6 +34,13 @@ search:
   max-search-length: ${SEARCH_MAX_SEARCH_LENGTH:128}
   max-filter-length: ${SEARCH_MAX_FILTER_LENGTH:256}
 
+analytics:
+  default-range-hours: ${ANALYTICS_DEFAULT_RANGE_HOURS:24}
+  max-range-hours: ${ANALYTICS_MAX_RANGE_HOURS:168}
+  max-buckets: ${ANALYTICS_MAX_BUCKETS:1000}
+  top-services-limit: ${ANALYTICS_TOP_SERVICES_LIMIT:5}
+  top-errors-limit: ${ANALYTICS_TOP_ERRORS_LIMIT:10}
+
 jwt:
   secret: ${JWT_SECRET:SuperSecretJwtSigningKeyWithMinimum256BitsLengthForHmacSha256!}
   expiration-ms: ${JWT_EXPIRATION_MS:900000}

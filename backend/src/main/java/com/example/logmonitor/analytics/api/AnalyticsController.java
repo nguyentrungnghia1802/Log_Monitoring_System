@@ -26,10 +26,14 @@ public class AnalyticsController {
         @PathVariable("projectId") String projectId,
         @RequestParam(value = "startTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
         @RequestParam(value = "endTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime,
+        @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+        @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
         @RequestParam(value = "environment", required = false) String environment,
         @RequestParam(value = "service", required = false) String service
     ) {
-        AnalyticsSummaryResponse summary = analyticsService.getSummary(projectId, startTime, endTime, environment, service);
+        Instant resolvedStartTime = startTime != null ? startTime : from;
+        Instant resolvedEndTime = endTime != null ? endTime : to;
+        AnalyticsSummaryResponse summary = analyticsService.getSummary(projectId, resolvedStartTime, resolvedEndTime, environment, service);
         return ResponseEntity.ok(summary);
     }
 
@@ -38,11 +42,15 @@ public class AnalyticsController {
         @PathVariable("projectId") String projectId,
         @RequestParam(value = "startTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
         @RequestParam(value = "endTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime,
-        @RequestParam(value = "interval", defaultValue = "1h") String interval,
+        @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+        @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+        @RequestParam(value = "interval", required = false) String interval,
         @RequestParam(value = "environment", required = false) String environment,
         @RequestParam(value = "service", required = false) String service
     ) {
-        AnalyticsHistogramResponse histogram = analyticsService.getHistogram(projectId, startTime, endTime, interval, environment, service);
+        Instant resolvedStartTime = startTime != null ? startTime : from;
+        Instant resolvedEndTime = endTime != null ? endTime : to;
+        AnalyticsHistogramResponse histogram = analyticsService.getHistogram(projectId, resolvedStartTime, resolvedEndTime, interval, environment, service);
         return ResponseEntity.ok(histogram);
     }
 }

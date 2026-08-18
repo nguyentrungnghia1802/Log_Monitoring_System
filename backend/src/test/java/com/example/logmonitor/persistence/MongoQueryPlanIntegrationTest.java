@@ -129,7 +129,14 @@ class MongoQueryPlanIntegrationTest {
                 "time-series aggregation",
                 List.of(
                     new Document("$match", projectTime),
-                    new Document("$project", new Document("level", 1).append("timestamp", 1))
+                    new Document("$group", new Document("_id", new Document("$dateTrunc", new Document("date", "$timestamp")
+                        .append("unit", "minute")
+                        .append("binSize", 15)
+                        .append("timezone", "UTC")))
+                        .append("total", new Document("$sum", 1))
+                        .append("errorCount", new Document("$sum", new Document("$cond", List.of(
+                            new Document("$eq", List.of("$level", "ERROR")), 1, 0))))
+                    )
                 )
             ),
             explainAggregate(

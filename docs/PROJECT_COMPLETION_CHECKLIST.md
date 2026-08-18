@@ -787,20 +787,29 @@ project-scoped detail endpoint only after an operator selects a summary row.
 
 ### Tasks
 
-- [ ] validate bucket selection;
-- [ ] enforce maximum analytics range;
-- [ ] auto-select bucket where appropriate;
-- [ ] enforce top-N caps;
-- [ ] ensure early `$match`;
-- [ ] avoid raw event loading into Java;
-- [ ] verify empty result behavior;
-- [ ] verify timezone semantics use UTC internally;
-- [ ] verify top fingerprint treatment of missing fingerprints;
-- [ ] add performance regression tests.
+- [x] validate bucket selection;
+- [x] enforce maximum analytics range;
+- [x] auto-select bucket where appropriate;
+- [x] enforce top-N caps;
+- [x] ensure early `$match`;
+- [x] avoid raw event loading into Java;
+- [x] verify empty result behavior;
+- [x] verify timezone semantics use UTC internally;
+- [x] verify top fingerprint treatment of missing fingerprints;
+- [x] add performance regression tests.
 
 ### Exit criteria
 
-- [ ] Dashboard queries remain bounded and use MongoDB aggregation effectively.
+- [x] Dashboard queries remain bounded and use MongoDB aggregation effectively.
+
+Evidence: `AnalyticsService` validates the project/time range, supported
+intervals, bucket count, and configured top-N limits before executing
+project-scoped aggregations. Histogram grouping uses `$dateTrunc` in UTC
+after an early `$match`; only grouped buckets are mapped in Java. Missing
+fingerprints become `UNKNOWN_ERROR`. `AnalyticsServiceTest` covers these
+guards, empty results, UTC alignment, and the D4 regression set. The D2
+`MongoQueryPlanIntegrationTest` provides the real-MongoDB `executionStats`
+regression evidence for representative analytics pipelines.
 
 ---
 
