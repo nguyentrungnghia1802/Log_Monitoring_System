@@ -291,7 +291,7 @@ coordinator and worker drain markers. On POSIX it sends `kill -TERM` to the
 boot process. The shutdown trigger is exposed only by `application-test.yml`;
 it must never be enabled in a production profile.
 
-## 8. Platform metrics
+## 9. Platform metrics
 
 The backend uses Spring Boot Actuator/Micrometer for `http.server.requests`,
 `jvm.*`, and `process.*`. Application-specific names are deliberately
@@ -334,7 +334,29 @@ production rollout.
 
 ---
 
-## 9. Load test plan
+## 10. Java SDK integration
+
+The Java source SDK is tested independently with an in-process HTTP server:
+
+```powershell
+./gradlew :sdk:log-monitoring-java-sdk:test --no-parallel
+```
+
+`LogMonitoringClientTest` covers default service/environment and generated
+correlation fields, exception/stack truncation, context/tag serialization,
+batch formation and partial flush, local queue capacity, `202` admission,
+non-retryable `401/403`, retryable `429/503`, `Retry-After`, transport timeout,
+retry exhaustion, bounded shutdown flush, and post-close policy drops.
+
+The callback contract separates immediate `QUEUED_LOCALLY` from the eventual
+server result. A successful `202` only means that the platform accepted the
+batch into its bounded process-memory queue; integration tests must not assert
+durable persistence at that point. The duplicate-event policy remains
+at-least-once and tolerant of repeated `eventId` values.
+
+---
+
+## 11. Load test plan
 
 Load tests are a core deliverable, not an afterthought.
 
@@ -373,7 +395,7 @@ Run dashboard/search traffic while ingestion continues and observe interference.
 
 ---
 
-## 10. Performance experiment discipline
+## 12. Performance experiment discipline
 
 Every optimization should record:
 
@@ -398,7 +420,7 @@ Avoid tuning by intuition only.
 
 ---
 
-## 11. Suggested validation commands
+## 13. Suggested validation commands
 
 Backend:
 
@@ -421,7 +443,7 @@ E2E/load scripts should be standardized later in repository scripts.
 
 ---
 
-## 12. Static/security checks
+## 14. Static/security checks
 
 Recommended CI roadmap:
 
@@ -437,7 +459,7 @@ Coverage percentage must not replace behavioral test quality.
 
 ---
 
-## 13. Manual acceptance scenario with LINE Smart Queue
+## 15. Manual acceptance scenario with LINE Smart Queue
 
 1. Start monitoring platform.
 2. Create project/API key.
@@ -455,7 +477,7 @@ Coverage percentage must not replace behavioral test quality.
 
 ---
 
-## 14. Definition of done
+## 16. Definition of done
 
 A backend feature is not done until:
 
