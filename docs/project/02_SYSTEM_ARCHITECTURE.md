@@ -443,8 +443,10 @@ ingestion.queue.capacity
 ingestion.worker.active
 ingestion.batch.size
 ingestion.persistence.duration
+ingestion.persistence.retries
 ingestion.persistence.failures
 mongodb.command.duration
+mongodb.command.errors
 livetail.sessions.active
 livetail.subscriptions.active
 livetail.events.sent
@@ -454,6 +456,7 @@ alert.evaluations
 alert.triggered
 alert.delivery.success
 alert.delivery.failure
+alert.delivery.retry
 jvm.*
 process.*
 ```

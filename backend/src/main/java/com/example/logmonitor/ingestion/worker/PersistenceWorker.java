@@ -5,6 +5,7 @@ import com.example.logmonitor.ingestion.domain.LogEvent;
 import com.example.logmonitor.ingestion.infrastructure.IngestionQueue;
 import com.example.logmonitor.persistence.LogEventPersistenceService;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -37,7 +38,9 @@ public class PersistenceWorker {
     private final Counter failedEventCounter;
     private final Counter shutdownRemainingEventCounter;
     private final Counter shutdownUnfinishedEventCounter;
+    private final DistributionSummary batchSizeSummary;
     private final AtomicInteger shutdownQueueDepth = new AtomicInteger();
+    private final AtomicInteger activeWorkers = new AtomicInteger();
     private final AtomicBoolean shutdownStarted = new AtomicBoolean();
     private final long shutdownTimeoutMs;
     private volatile boolean running = true;
@@ -71,6 +74,13 @@ public class PersistenceWorker {
             .register(meterRegistry);
         this.shutdownUnfinishedEventCounter = Counter.builder("ingestion.worker.shutdown.unfinished_events")
             .description("Events still queued after the graceful shutdown deadline")
+            .register(meterRegistry);
+        Gauge.builder("ingestion.worker.active", activeWorkers, AtomicInteger::get)
+            .description("Number of ingestion persistence workers currently executing")
+            .register(meterRegistry);
+        this.batchSizeSummary = DistributionSummary.builder("ingestion.batch.size")
+            .baseUnit("events")
+            .description("Distribution of event counts handled by persistence batches")
             .register(meterRegistry);
         Gauge.builder("ingestion.worker.shutdown.queue_depth", shutdownQueueDepth, AtomicInteger::get)
             .description("Queue depth observed when graceful worker shutdown began")
@@ -151,46 +161,51 @@ public class PersistenceWorker {
     }
 
     private void runLoop() {
-        List<LogEvent> batch = new ArrayList<>();
-        while (running && !Thread.currentThread().isInterrupted()) {
-            try {
-                LogEvent first = ingestionQueue.poll(maxWaitMs, TimeUnit.MILLISECONDS);
-                if (first == null) {
-                    continue;
-                }
-
-                batch.clear();
-                batch.add(first);
-                long deadline = System.currentTimeMillis() + maxWaitMs;
-
-                while (batch.size() < batchMaxSize) {
-                    long remainingWait = deadline - System.currentTimeMillis();
-                    if (remainingWait <= 0) {
-                        break;
+        activeWorkers.incrementAndGet();
+        try {
+            List<LogEvent> batch = new ArrayList<>();
+            while (running && !Thread.currentThread().isInterrupted()) {
+                try {
+                    LogEvent first = ingestionQueue.poll(maxWaitMs, TimeUnit.MILLISECONDS);
+                    if (first == null) {
+                        continue;
                     }
-                    LogEvent next = ingestionQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
-                    if (next == null) {
-                        break;
-                    }
-                    batch.add(next);
-                }
 
-                tryPersist(List.copyOf(batch));
-                batch.clear();
-            } catch (InterruptedException ex) {
-                if (!batch.isEmpty()) {
+                    batch.clear();
+                    batch.add(first);
+                    long deadline = System.currentTimeMillis() + maxWaitMs;
+
+                    while (batch.size() < batchMaxSize) {
+                        long remainingWait = deadline - System.currentTimeMillis();
+                        if (remainingWait <= 0) {
+                            break;
+                        }
+                        LogEvent next = ingestionQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
+                        if (next == null) {
+                            break;
+                        }
+                        batch.add(next);
+                    }
+
                     tryPersist(List.copyOf(batch));
                     batch.clear();
+                } catch (InterruptedException ex) {
+                    if (!batch.isEmpty()) {
+                        tryPersist(List.copyOf(batch));
+                        batch.clear();
+                    }
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception ex) {
+                    log.error(
+                        "Unexpected error in worker loop: type={} message={}",
+                        ex.getClass().getSimpleName(),
+                        redactor.redactText(ex.getMessage())
+                    );
                 }
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception ex) {
-                log.error(
-                    "Unexpected error in worker loop: type={} message={}",
-                    ex.getClass().getSimpleName(),
-                    redactor.redactText(ex.getMessage())
-                );
             }
+        } finally {
+            activeWorkers.decrementAndGet();
         }
     }
 
@@ -198,6 +213,7 @@ public class PersistenceWorker {
         if (batch.isEmpty()) {
             return;
         }
+        batchSizeSummary.record(batch.size());
         try {
             persistenceService.persist(batch);
             log.debug("Persisted worker batch size={}", batch.size());

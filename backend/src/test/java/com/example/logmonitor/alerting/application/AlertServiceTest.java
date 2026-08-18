@@ -10,6 +10,7 @@ import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import com.example.logmonitor.persistence.LogEventDocument;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -32,6 +33,7 @@ class AlertServiceTest {
     private AlertNotificationSender notificationSender;
     private AuditService auditService;
     private GracefulShutdownCoordinator shutdownCoordinator;
+    private SimpleMeterRegistry meterRegistry;
     private AlertService alertService;
 
     @BeforeEach
@@ -42,6 +44,7 @@ class AlertServiceTest {
         notificationSender = mock(AlertNotificationSender.class);
         auditService = mock(AuditService.class);
         shutdownCoordinator = mock(GracefulShutdownCoordinator.class);
+        meterRegistry = new SimpleMeterRegistry();
         when(shutdownCoordinator.isAcceptingTraffic()).thenReturn(true);
         when(occurrenceRepository.save(any(AlertOccurrence.class))).thenAnswer(invocation -> {
             AlertOccurrence occurrence = invocation.getArgument(0);
@@ -49,7 +52,8 @@ class AlertServiceTest {
             return occurrence;
         });
         alertService = new AlertService(ruleRepository, occurrenceRepository, mongoTemplate, notificationSender,
-            auditService, new SensitiveDataRedactor(new RedactionProperties()), shutdownCoordinator);
+            auditService, new SensitiveDataRedactor(new RedactionProperties()), shutdownCoordinator,
+            meterRegistry);
     }
 
     @Test
@@ -65,6 +69,9 @@ class AlertServiceTest {
         verify(occurrenceRepository, times(2)).save(any());
         verify(ruleRepository).save(rule);
         assertNotNull(rule.getCooldownUntil());
+        assertEquals(1.0, meterRegistry.counter("alert.evaluations").count());
+        assertEquals(1.0, meterRegistry.counter("alert.triggered").count());
+        assertEquals(1.0, meterRegistry.counter("alert.delivery.success").count());
     }
 
     @Test
@@ -162,6 +169,8 @@ class AlertServiceTest {
         verify(occurrenceRepository, times(1)).save(same(occurrence));
         verify(auditService).logAction("operator@example.com", "org-1", "demo-project", "RETRY_NOTIFICATION",
             "ALERT_OCCURRENCE", "occ-1", "Alert notification delivery retried");
+        assertEquals(1.0, meterRegistry.counter("alert.delivery.retry").count());
+        assertEquals(1.0, meterRegistry.counter("alert.delivery.failure").count());
     }
 
     @Test
@@ -179,6 +188,8 @@ class AlertServiceTest {
         assertEquals("FAILED", occurrence.getDeliveryStatus());
         assertEquals("shutdown", occurrence.getDeliveryAttempts().get(0).provider());
         assertEquals("Application is shutting down", occurrence.getLastError());
+        assertEquals(1.0, meterRegistry.counter("alert.delivery.retry").count());
+        assertEquals(1.0, meterRegistry.counter("alert.delivery.failure").count());
     }
 
     @Test

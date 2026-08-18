@@ -24,6 +24,7 @@ public class IngestionQueue {
     private final AtomicBoolean accepting = new AtomicBoolean(true);
     private final Counter acceptedMeter;
     private final Counter rejectedMeter;
+    private final Counter shutdownRejectedMeter;
 
     public IngestionQueue(
         @Value("${ingestion.queue.capacity:50000}") int capacity,
@@ -31,20 +32,25 @@ public class IngestionQueue {
     ) {
         this.queue = new ArrayBlockingQueue<>(capacity);
 
-        Gauge.builder("ingestion.queue.size", queue, Collection::size)
+        Gauge.builder("ingestion.queue.depth", queue, Collection::size)
             .description("Current depth of the log ingestion queue")
             .register(registry);
 
-        Gauge.builder("ingestion.queue.remaining_capacity", queue, BlockingQueue::remainingCapacity)
-            .description("Remaining capacity of the log ingestion queue")
+        Gauge.builder("ingestion.queue.capacity", queue, currentQueue ->
+                currentQueue.size() + currentQueue.remainingCapacity())
+            .description("Configured capacity of the log ingestion queue")
             .register(registry);
 
-        this.acceptedMeter = Counter.builder("ingestion.queue.accepted")
+        this.acceptedMeter = Counter.builder("ingestion.accepted")
             .description("Total log events accepted into the queue")
             .register(registry);
 
-        this.rejectedMeter = Counter.builder("ingestion.queue.rejected")
-            .description("Total log events rejected due to backpressure")
+        this.rejectedMeter = Counter.builder("ingestion.rejected.backpressure")
+            .description("Total log events rejected because the ingestion queue is full")
+            .register(registry);
+
+        this.shutdownRejectedMeter = Counter.builder("ingestion.rejected.shutdown")
+            .description("Total log events rejected because application shutdown has started")
             .register(registry);
     }
 
@@ -55,7 +61,7 @@ public class IngestionQueue {
     public synchronized boolean offer(LogEvent event) {
         if (!accepting.get()) {
             rejectedCounter.incrementAndGet();
-            rejectedMeter.increment();
+            shutdownRejectedMeter.increment();
             return false;
         }
         boolean accepted = queue.offer(event);
@@ -73,7 +79,7 @@ public class IngestionQueue {
         synchronized (this) {
             if (!accepting.get()) {
                 rejectedCounter.addAndGet(events.size());
-                rejectedMeter.increment(events.size());
+                shutdownRejectedMeter.increment(events.size());
                 return false;
             }
             if (!hasCapacity(events.size())) {

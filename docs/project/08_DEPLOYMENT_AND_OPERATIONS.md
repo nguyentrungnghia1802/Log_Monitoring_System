@@ -174,6 +174,14 @@ Alerts triggered
 Notification failures
 ```
 
+The backend exposes the panels through Actuator/Micrometer. Use the canonical
+names in `docs/project/02_SYSTEM_ARCHITECTURE.md`, including
+`ingestion.queue.depth`, `ingestion.worker.active`,
+`ingestion.persistence.duration`, `mongodb.command.duration`, and
+`alert.delivery.failure`. The HTTP, JVM, and process binders are supplied by
+Spring Boot; application metrics are low-cardinality counters, gauges,
+summaries, and timers.
+
 ---
 
 ## 7. Alerting on the monitoring platform
@@ -336,7 +344,10 @@ All changes are audited.
 - rotate exposed API keys immediately;
 - rotate JWT/provider credentials if leaked;
 - never paste secrets into incident tickets;
-- restrict actuator/prometheus at infrastructure boundary;
+- restrict actuator/prometheus at infrastructure boundary. The repository
+  provides `ops/nginx/actuator-metrics.conf` as an allowlist starting point;
+  replace its example private ranges with the actual Prometheus scraper
+  addresses before deployment;
 - keep MongoDB inaccessible from public internet;
 - enable TLS for external traffic;
 - retain audit records longer than raw debug logs.

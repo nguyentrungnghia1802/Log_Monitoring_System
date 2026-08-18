@@ -27,6 +27,8 @@ public class LogEventPersistenceService {
     private final Timer persistenceTimer;
     private final Counter persistedEventsCounter;
     private final Counter persistenceFailedCounter;
+    private final Counter persistenceRetryCounter;
+    private final Counter persistenceFailureCounter;
     private final SensitiveDataRedactor redactor;
 
     public LogEventPersistenceService(
@@ -38,7 +40,7 @@ public class LogEventPersistenceService {
         this.mongoTemplate = mongoTemplate;
         this.liveTailPublisher = liveTailPublisher;
         this.redactor = redactor;
-        this.persistenceTimer = Timer.builder("ingestion.persistence.latency")
+        this.persistenceTimer = Timer.builder("ingestion.persistence.duration")
             .description("Time taken to bulk write log events to MongoDB")
             .register(registry);
         this.persistedEventsCounter = Counter.builder("ingestion.persistence.events.saved")
@@ -46,6 +48,12 @@ public class LogEventPersistenceService {
             .register(registry);
         this.persistenceFailedCounter = Counter.builder("ingestion.persistence.events.failed")
             .description("Total log events failed during persistence")
+            .register(registry);
+        this.persistenceRetryCounter = Counter.builder("ingestion.persistence.retries")
+            .description("Retry attempts made after transient persistence failures")
+            .register(registry);
+        this.persistenceFailureCounter = Counter.builder("ingestion.persistence.failures")
+            .description("Persistence batches that exhausted all retry attempts")
             .register(registry);
     }
 
@@ -80,6 +88,7 @@ public class LogEventPersistenceService {
                     );
                     if (attempt >= MAX_RETRIES) {
                         persistenceFailedCounter.increment(documents.size());
+                        persistenceFailureCounter.increment();
                         log.error(
                             "Exhausted retries persisting batch of {} events: type={} message={}",
                             documents.size(),
@@ -88,6 +97,7 @@ public class LogEventPersistenceService {
                         );
                         throw ex;
                     }
+                    persistenceRetryCounter.increment();
                     try {
                         Thread.sleep(backoffMs);
                         backoffMs *= 2;
