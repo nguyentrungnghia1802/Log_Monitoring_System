@@ -14,6 +14,8 @@ import java.util.Map;
 @CompoundIndexes({
     @CompoundIndex(name = "idx_logs_proj_time", def = "{'project_id': 1, 'timestamp': -1, '_id': -1}"),
     @CompoundIndex(name = "idx_logs_proj_level_time", def = "{'project_id': 1, 'level': 1, 'timestamp': -1, '_id': -1}"),
+    @CompoundIndex(name = "idx_logs_proj_environment_time", def = "{'project_id': 1, 'environment': 1, 'timestamp': -1, '_id': -1}"),
+    @CompoundIndex(name = "idx_logs_proj_service_time", def = "{'project_id': 1, 'service': 1, 'timestamp': -1, '_id': -1}"),
     @CompoundIndex(name = "idx_logs_proj_eventtype_time", def = "{'project_id': 1, 'event_type': 1, 'timestamp': -1, '_id': -1}"),
     @CompoundIndex(name = "idx_logs_proj_trace", def = "{'project_id': 1, 'trace_id': 1, 'timestamp': -1}"),
     @CompoundIndex(name = "idx_logs_proj_request", def = "{'project_id': 1, 'request_id': 1, 'timestamp': -1}"),

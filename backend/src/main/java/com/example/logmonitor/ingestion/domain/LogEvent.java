@@ -46,7 +46,9 @@ public record LogEvent(
 
         Instant now = Instant.now();
         Instant eventTimestamp = request.timestamp() == null ? now : request.timestamp();
-        Instant expireAt = eventTimestamp.plusSeconds(retentionSeconds <= 0 ? DEFAULT_RETENTION_SECONDS : retentionSeconds);
+        // Retention is anchored to server receipt time so a producer-controlled
+        // future timestamp cannot extend storage beyond the configured policy.
+        Instant expireAt = now.plusSeconds(retentionSeconds <= 0 ? DEFAULT_RETENTION_SECONDS : retentionSeconds);
         String fingerprint = normalizedMessage.isBlank() ? normalizedEventType : normalizedEventType + "::" + normalizedMessage;
 
         return new LogEvent(
@@ -70,14 +72,10 @@ public record LogEvent(
             fingerprint
         );
     }
-}
 
-record ExceptionDetails(String type, String message, String stackTrace) {
-    static ExceptionDetails from(IngestionRequest.ExceptionRequest exception) {
-        return new ExceptionDetails(
-            exception.type(),
-            exception.message(),
-            exception.stackTrace()
-        );
+    public record ExceptionDetails(String type, String message, String stackTrace) {
+        static ExceptionDetails from(IngestionRequest.ExceptionRequest exception) {
+            return new ExceptionDetails(exception.type(), exception.message(), exception.stackTrace());
+        }
     }
 }

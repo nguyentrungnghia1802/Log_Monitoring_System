@@ -135,6 +135,13 @@ public class LogEventPersistenceService {
                     (left, right) -> right,
                     java.util.LinkedHashMap::new));
         }
+        if (value instanceof LogEvent.ExceptionDetails exception) {
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("type", exception.type());
+            result.put("message", exception.message());
+            result.put("stackTrace", exception.stackTrace());
+            return result;
+        }
         return Map.of("value", value);
     }
 }

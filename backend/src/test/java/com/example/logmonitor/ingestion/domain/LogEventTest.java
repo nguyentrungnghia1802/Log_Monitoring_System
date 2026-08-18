@@ -36,7 +36,8 @@ class LogEventTest {
         assertEquals("ORDER_FAILED", event.eventType());
         assertEquals("Payment timeout", event.message());
         assertEquals("ORDER_FAILED::Payment timeout", event.errorFingerprint());
-        assertEquals(now.plusSeconds(7 * 24 * 3600L), event.expireAt());
+        assertTrue(event.expireAt().isAfter(event.receivedAt()));
+        assertEquals(7 * 24 * 3600L, event.expireAt().getEpochSecond() - event.receivedAt().getEpochSecond());
     }
 
     @Test
@@ -60,6 +61,21 @@ class LogEventTest {
         long retentionSeconds = 30 * 24 * 3600L; // 30 days
         LogEvent event = LogEvent.of(request, "org-1", "proj-1", "key-1", retentionSeconds);
 
-        assertEquals(now.plusSeconds(retentionSeconds), event.expireAt());
+        assertEquals(retentionSeconds, event.expireAt().getEpochSecond() - event.receivedAt().getEpochSecond());
+    }
+
+    @Test
+    void producerTimestampCannotExtendServerControlledRetention() {
+        Instant futureTimestamp = Instant.now().plusSeconds(365L * 24 * 3600);
+        IngestionRequest request = new IngestionRequest(
+            "future-event", futureTimestamp, "INFO", "auth-service", "prod", "CLOCK_SKEW",
+            "Producer clock is in the future", null, null, null, null, null
+        );
+
+        LogEvent event = LogEvent.of(request, "org-1", "proj-1", "key-1", 3600);
+
+        assertEquals(futureTimestamp, event.timestamp());
+        assertTrue(event.expireAt().isBefore(futureTimestamp));
+        assertEquals(3600, event.expireAt().getEpochSecond() - event.receivedAt().getEpochSecond());
     }
 }

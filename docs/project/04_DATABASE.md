@@ -87,24 +87,25 @@ until expiration to preserve replay rejection without retaining raw secrets.
 ```json
 {
   "_id": "ObjectId",
-  "projectId": "ObjectId",
-  "apiKeyId": "ObjectId",
+  "organization_id": "organization-id",
+  "project_id": "project-id",
+  "api_key_id": "api-key-id",
 
-  "eventId": "client-optional",
+  "event_id": "client-optional",
   "timestamp": "2026-07-30T10:15:12.123Z",
-  "receivedAt": "2026-07-30T10:15:12.175Z",
-  "expireAt": "2026-08-29T10:15:12.175Z",
+  "received_at": "2026-07-30T10:15:12.175Z",
+  "expire_at": "2026-08-29T10:15:12.175Z",
 
   "level": "ERROR",
   "service": "queue-service",
   "environment": "production",
-  "eventType": "QUEUE_CREATE_FAILED",
+  "event_type": "QUEUE_CREATE_FAILED",
 
   "message": "Failed to create queue",
-  "fingerprint": "optional-normalized-error-fingerprint",
+  "error_fingerprint": "QUEUE_CREATE_FAILED::Failed to create queue",
 
-  "traceId": "optional",
-  "requestId": "optional",
+  "trace_id": "optional",
+  "request_id": "optional",
 
   "exception": {
     "type": "MongoTimeoutException",
@@ -128,8 +129,15 @@ Rules:
 
 - server sets organization/project/API-key IDs;
 - server sets `receivedAt`;
-- server computes `expireAt`;
+- server computes `expireAt = receivedAt + effective retention`; client
+  `timestamp` remains distinct and cannot extend retention;
+- optional client `eventId` is stored without a uniqueness guarantee in V1;
+- the current deterministic fingerprint is `eventType + "::" + message`
+  (or `eventType` for a blank message) after ingestion sanitization;
 - `context` and `tags` have bounded key count, depth, key length, and serialized size;
+- default bounds are 50 root keys, depth 5, key length 100, 100 collection
+  entries, 32 KiB context, 16 KiB tags, 4,000-character values/messages,
+  4,000-character exception messages, and 16,000-character stack traces;
 - log event is append-only;
 - arbitrary context cannot overwrite reserved fields.
 
@@ -287,13 +295,15 @@ Indexes must come from query patterns, not habit.
 Baseline candidate indexes:
 
 ```javascript
-{ projectId: 1, timestamp: -1 }
-{ projectId: 1, environment: 1, timestamp: -1 }
-{ projectId: 1, service: 1, timestamp: -1 }
-{ projectId: 1, level: 1, timestamp: -1 }
-{ projectId: 1, traceId: 1, timestamp: 1 }
-{ projectId: 1, requestId: 1, timestamp: 1 }
-{ expireAt: 1 } // TTL
+{ project_id: 1, timestamp: -1, _id: -1 }
+{ project_id: 1, environment: 1, timestamp: -1, _id: -1 }
+{ project_id: 1, service: 1, timestamp: -1, _id: -1 }
+{ project_id: 1, level: 1, timestamp: -1, _id: -1 }
+{ project_id: 1, event_type: 1, timestamp: -1, _id: -1 }
+{ project_id: 1, trace_id: 1, timestamp: -1 }
+{ project_id: 1, request_id: 1, timestamp: -1 }
+{ project_id: 1, error_fingerprint: 1, timestamp: -1 }
+{ expire_at: 1 } // TTL, expireAfterSeconds: 0
 ```
 
 Do **not** blindly create every combination. Use real query traces and `explain()` to remove/adjust redundant indexes.
@@ -303,14 +313,14 @@ Potential partial indexes may be evaluated for fields such as `traceId` if spars
 ### Configuration collections
 
 - `organizations.slug` unique;
-- project key unique within organization;
-- API-key `publicId` unique;
-- `users.organizationId` for organization member listing;
-- `audit_logs.organizationId` for organization configuration history;
-- user normalized email unique;
-- membership organization/user unique;
-- alert rule project/status index;
-- alert occurrence project/triggeredAt descending.
+- `projects(organizationId, key)` unique and `organizationId` indexed;
+- `api_keys.publicId` unique sparse and legacy `keyPrefix` indexed;
+- `users.username` unique, `email` unique sparse, and `organizationId` indexed;
+- `auth_sessions.refreshTokenHash` unique, `userId` indexed, and `expiresAt` TTL;
+- `project_memberships(userId, projectId)` unique;
+- `audit_logs.organizationId` and `projectId` indexed;
+- `alert_rules(project_id, enabled)`;
+- `alert_occurrences(project_id, triggered_at desc)`.
 
 ---
 
@@ -320,7 +330,7 @@ Create one TTL index on absolute expiration:
 
 ```javascript
 db.log_events.createIndex(
-  { expireAt: 1 },
+  { expire_at: 1 },
   { expireAfterSeconds: 0 }
 )
 ```

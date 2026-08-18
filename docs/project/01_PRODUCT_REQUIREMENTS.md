@@ -191,6 +191,10 @@ tracked separately in C3.
 | BR-LIVE-001 | Live-tail loss or disconnect never changes stored event state. |
 | BR-SEC-001 | API key, JWT, authorization headers, passwords, and known secret fields must be redacted from internal platform logs. |
 
+Implementation note: V1 anchors the server-calculated `expireAt` to
+`receivedAt`, not the producer-controlled event `timestamp`, so producer clock
+skew cannot extend the configured retention period.
+
 ---
 
 ## 5. Initial event contract
