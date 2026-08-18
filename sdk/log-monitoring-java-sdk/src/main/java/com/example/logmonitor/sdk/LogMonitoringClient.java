@@ -62,6 +62,9 @@ public class LogMonitoringClient implements AutoCloseable {
             return false;
         }
 
+        // Generate identity before queueing so all HTTP retries resend the same
+        // eventId. The server still treats repeated accepted submissions as
+        // separate log documents in V1.
         LogEventPayload payload = new LogEventPayload(
             UUID.randomUUID().toString(),
             Instant.now(),

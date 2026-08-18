@@ -389,7 +389,9 @@ List<WriteModel<LogEventDocument>>
  -> bulkWrite(models, ordered=false)
 ```
 
-Unordered bulk writes are preferred for throughput where one invalid/duplicate event must not block all unrelated inserts. Exact behavior for duplicate `eventId` is governed by the idempotency decision below.
+Unordered bulk writes are preferred for throughput where one write error must
+not block all unrelated inserts. Duplicate `eventId` values are valid in V1;
+they do not trigger a duplicate-key error or block other inserts.
 
 ---
 
@@ -397,14 +399,21 @@ Unordered bulk writes are preferred for throughput where one invalid/duplicate e
 
 V1 does not promise exactly-once ingestion.
 
-Recommended behavior:
+V1 decision:
 
 - Mongo `_id` remains server-generated;
-- optional client `eventId` is stored;
-- a unique index on `(projectId,eventId)` is **not required by default**, because retries and producer behavior must be measured first;
-- exact duplicate suppression can be added per project/SDK contract later.
+- optional client `eventId` is stored as a producer correlation value;
+- repeated `(projectId,eventId)` submissions are tolerated and stored as
+  separate immutable documents;
+- a unique index on `(projectId,eventId)` is intentionally not present in V1;
+  producer retry behavior and the write/storage trade-off must be measured
+  before revisiting this decision;
+- exact duplicate suppression is deferred to a future explicit project/SDK
+  contract.
 
-The API must not advertise exactly-once semantics.
+The Java SDK creates one UUID before queueing an event and reuses it across its
+bounded HTTP retry loop. A direct API client can provide the same stable
+`eventId` explicitly. Neither client path claims exactly-once semantics.
 
 ---
 

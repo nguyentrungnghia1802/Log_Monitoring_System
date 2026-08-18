@@ -77,6 +77,27 @@ class MongoSchemaAndIndexIntegrationTest {
     }
 
     @Test
+    void storesRepeatedClientEventIdsAsSeparateServerDocuments() {
+        Instant producerTime = Instant.now();
+        IngestionRequest request = new IngestionRequest(
+            "retry-event-1", producerTime, "WARN", "queue-service", "production", "QUEUE_RETRY",
+            "Retryable queue operation", null, null, null, Map.of(), Map.of()
+        );
+        LogEvent first = LogEvent.of(request, "org-1", "project-1", "api-key-1", 3600);
+        LogEvent second = LogEvent.of(request, "org-1", "project-1", "api-key-1", 3600);
+
+        persistenceService.persist(List.of(first, second));
+
+        List<Document> stored = mongoTemplate.getCollection("log_events")
+            .find(eq("event_id", "retry-event-1"))
+            .into(new ArrayList<>());
+        assertEquals(2, stored.size());
+        assertNotEquals(stored.get(0).get("_id"), stored.get(1).get("_id"));
+        assertEquals("project-1", stored.get(0).getString("project_id"));
+        assertEquals("project-1", stored.get(1).getString("project_id"));
+    }
+
+    @Test
     void initializesTtlCriticalCompoundAndConfigurationUniqueIndexes() {
         Map<String, Document> logIndexes = indexes("log_events");
         assertIndex(logIndexes, "ttl_expire", new Document("expire_at", 1));

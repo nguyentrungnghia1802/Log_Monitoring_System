@@ -188,6 +188,13 @@ not implemented because V1 has no defined resolution semantics.
 
 This rule keeps client retry behavior deterministic.
 
+`eventId` is optional producer identity. The server stores it for correlation
+but does not use it as a uniqueness key: repeating an accepted request with
+the same event ID creates another immutable log document. The Java SDK
+generates one event ID before queueing and keeps it stable across retries;
+direct API clients can do the same explicitly. Neither path receives an
+exactly-once guarantee.
+
 ---
 
 ## 9. Backpressure flow

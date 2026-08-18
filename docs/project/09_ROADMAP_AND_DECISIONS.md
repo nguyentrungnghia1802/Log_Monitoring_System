@@ -307,6 +307,31 @@ Introduce a durable broker when admitted-event durability, replay, independent s
 
 ---
 
+# ADR-014: V1 tolerates duplicate client event IDs
+
+**Status:** Accepted
+
+**Context:** HTTP admission and persistence are asynchronous. A client or
+the persistence worker can retry after a timeout where the previous write may
+already have succeeded. A client `eventId` alone cannot distinguish that
+uncertain outcome without a uniqueness constraint or a durable idempotency
+store.
+
+**Decision:** Keep Mongo `_id` server-generated and store optional client
+`eventId` without a unique `(projectId,eventId)` index. Repeated accepted
+submissions are valid duplicate telemetry and remain separate immutable log
+documents. The Java SDK generates one event ID before queueing and reuses it
+for its bounded HTTP retries; direct clients should reuse their own event ID
+when correlating retries.
+
+**Consequences:** V1 remains write-throughput friendly and does not silently
+drop a legitimate repeated event, but search/analytics can count retry
+duplicates. The API and SDK must never promise exactly-once ingestion. Any
+future deduplication change requires measured producer retry data plus a
+benchmark of unique-index/write-cost and an explicit replacement ADR.
+
+---
+
 ## 4. Future research questions
 
 - Kafka vs RabbitMQ for the first durable-ingestion step?

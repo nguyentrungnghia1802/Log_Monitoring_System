@@ -817,16 +817,26 @@ regression evidence for representative analytics pipelines.
 
 ### Tasks
 
-- [ ] decide whether duplicate telemetry is tolerated in V1;
-- [ ] document `eventId` semantics;
-- [ ] measure producer retry behavior;
-- [ ] decide whether `(projectId, eventId)` uniqueness is needed;
-- [ ] avoid adding a unique index without benchmark;
-- [ ] ensure API never claims exactly-once behavior.
+- [x] decide whether duplicate telemetry is tolerated in V1;
+- [x] document `eventId` semantics;
+- [x] measure producer retry behavior;
+- [x] decide whether `(projectId, eventId)` uniqueness is needed;
+- [x] avoid adding a unique index without benchmark;
+- [x] ensure API never claims exactly-once behavior.
 
 ### Exit criteria
 
-- [ ] Duplicate behavior is explicit and consistent for SDK and direct API clients.
+- [x] Duplicate behavior is explicit and consistent for SDK and direct API clients.
+
+Evidence (2026-08-18): V1 accepts repeated client `eventId` values as separate
+immutable log documents; Mongo `_id` remains server-generated and no unique
+`(project_id,event_id)` index is added. `05_API.md`, `04_DATABASE.md`,
+`03_DOMAIN_AND_FLOWS.md`, and ADR-014 document the same rule for single,
+batch, direct-client, and SDK ingestion. `MongoSchemaAndIndexIntegrationTest`
+verifies duplicate storage, while `LogMonitoringClientTest` measures the
+bounded `503` to `202` retry harness and verifies a stable event ID/body.
+The result is an explicit at-least-once/duplicate-tolerant boundary, never an
+exactly-once claim.
 
 ---
 
