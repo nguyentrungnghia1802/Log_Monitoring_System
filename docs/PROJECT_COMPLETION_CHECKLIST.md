@@ -1109,17 +1109,30 @@ covers 12 in-process HTTP scenarios, and
 
 ### Optional but recommended
 
-- [ ] configuration properties;
-- [ ] auto-configuration;
-- [ ] conditional enablement;
-- [ ] bean lifecycle shutdown;
-- [ ] health/metric hooks;
-- [ ] safe disabled/no-op mode for local tests;
-- [ ] example YAML configuration.
+- [x] configuration properties;
+- [x] auto-configuration;
+- [x] conditional enablement;
+- [x] bean lifecycle shutdown;
+- [x] health/metric hooks;
+- [x] safe disabled/no-op mode for local tests;
+- [x] example YAML configuration.
 
 ### Exit criteria
 
-- [ ] A Spring Boot application can integrate using configuration and dependency injection.
+- [x] A Spring Boot application can integrate using configuration and dependency injection.
+
+Evidence (2026-08-18): `LogMonitoringProperties` maps every bounded
+`LogMonitoringClientConfig` setting and defaults `enabled=false`. The starter
+publishes `LogMonitoringAutoConfiguration` through Boot's imports metadata,
+creates a closing-aware `LogMonitoringClient` only when explicitly enabled,
+and otherwise provides `LogMonitoringOperations` through a network-free
+`NoopLogMonitoringOperations`. `LogMonitoringHealthIndicator` reports safe
+enabled/no-op and queue details, while `LogMonitoringMetricsListener` exposes
+low-cardinality outcome counters and queue gauges when Micrometer is present.
+`LogMonitoringAutoConfigurationTest` covers default no-op behavior, enabled
+property binding, health/metrics, context shutdown, and all SDK bound mappings;
+`sdk/log-monitoring-spring-boot-starter/README.md` contains the complete YAML
+example and the `202` server-admission limitation.
 
 ---
 

@@ -354,6 +354,21 @@ batch into its bounded process-memory queue; integration tests must not assert
 durable persistence at that point. The duplicate-event policy remains
 at-least-once and tolerant of repeated `eventId` values.
 
+### 10.1 Spring Boot starter
+
+Run the starter context tests with:
+
+```powershell
+./gradlew :sdk:log-monitoring-spring-boot-starter:test --no-parallel
+```
+
+`LogMonitoringAutoConfigurationTest` proves that the starter is safe when
+added to a local application: the default is a network-free no-op bean. An
+explicit `log-monitoring.client.enabled=true` creates the bounded client,
+closes it with the application context, and exposes queue health/metrics.
+Configuration and the complete YAML example are maintained in
+`sdk/log-monitoring-spring-boot-starter/README.md`.
+
 ---
 
 ## 11. Load test plan

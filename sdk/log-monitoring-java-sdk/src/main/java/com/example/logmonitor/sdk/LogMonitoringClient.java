@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * The configured callback receives the later server outcome. Applications
  * must treat {@code 202} as server admission only, never as durable storage.</p>
  */
-public class LogMonitoringClient implements AutoCloseable {
+public class LogMonitoringClient implements AutoCloseable, LogMonitoringOperations {
 
     private final LogMonitoringClientConfig config;
     private final ArrayBlockingQueue<QueuedEvent> queue;
@@ -127,6 +127,24 @@ public class LogMonitoringClient implements AutoCloseable {
             context,
             tags
         )).isQueuedLocally();
+    }
+
+    /** Returns whether this client still accepts locally queued events. */
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    /**
+     * Returns events that have not yet received a final callback outcome.
+     * This includes one batch currently being sent.
+     */
+    public int queuedEventCount() {
+        return Math.max(0, pendingEvents.get());
+    }
+
+    /** Returns the configured local queue capacity. */
+    public int queueCapacity() {
+        return config.getQueueCapacity();
     }
 
     /**
