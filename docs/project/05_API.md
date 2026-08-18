@@ -354,9 +354,58 @@ GET /api/v1/projects/:projectId/logs/:logId
 
 ## 10. Analytics
 
-The current backend exposes `/analytics/summary` and `/analytics/histogram`.
-The more granular paths below are the target contract for a later compatible
-split and are not yet implemented.
+The backend exposes bounded project-scoped summary and histogram queries:
+
+```http
+GET /api/v1/projects/:projectId/analytics/summary
+GET /api/v1/projects/:projectId/analytics/histogram
+```
+
+Common query parameters:
+
+```text
+from
+to
+environment
+service
+```
+
+`startTime` and `endTime` remain accepted as compatibility aliases for
+`from` and `to`; when both names are supplied, the `startTime`/`endTime`
+values win. If omitted, the server uses the latest 24 hours by default. A
+request may cover at most 168 hours by default; deployments can lower this
+limit through `ANALYTICS_MAX_RANGE_HOURS`, but the server hard cap is 31 days.
+
+Histogram-only query parameter:
+
+```text
+interval=1m|5m|15m|1h|1d
+```
+
+The server auto-selects `5m` for ranges up to two hours, `1h` for ranges up
+to 24 hours, and `1d` for longer ranges. The default maximum is 1,000
+returned buckets. A finer interval that exceeds this cap is rejected instead
+of silently truncating the result. Summary top services and top error
+fingerprints are capped at five and ten entries by default, with a hard cap
+of twenty each. Histogram timestamps are bucketed in UTC and the grouping is
+performed by MongoDB; Java receives grouped buckets rather than raw events.
+
+Invalid analytics requests use the following stable error codes:
+
+| Code | Meaning |
+| --- | --- |
+| `INVALID_ANALYTICS_RANGE` | Start is after end |
+| `ANALYTICS_RANGE_TOO_LARGE` | Requested range exceeds the configured maximum |
+| `INVALID_ANALYTICS_INTERVAL` | Interval is not one of the supported values |
+| `ANALYTICS_BUCKET_TOO_FINE` | Interval would exceed the bucket cap |
+| `ANALYTICS_FILTER_TOO_LONG` | Environment, service, or project filter is too long |
+| `INVALID_ANALYTICS_PARAMETER` | A date/time query parameter cannot be parsed |
+
+Range and interval validation failures return `422`; malformed query
+parameters return `400`.
+
+The following granular paths remain a future compatible split and are not yet
+implemented:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -364,18 +413,6 @@ split and are not yet implemented.
 | GET | `/api/v1/projects/:projectId/analytics/severity` | Distribution by level |
 | GET | `/api/v1/projects/:projectId/analytics/services` | Top services |
 | GET | `/api/v1/projects/:projectId/analytics/errors` | Top error fingerprints |
-
-Common query:
-
-```text
-from
-to
-environment
-service
-bucket=minute|hour|day
-```
-
-Bucket may be server-selected when omitted.
 
 ---
 

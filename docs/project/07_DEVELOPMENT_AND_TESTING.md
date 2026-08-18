@@ -194,6 +194,12 @@ sizes, malformed cursors, literal (escaped) message search, equal-timestamp
 cursor pagination after deletion, summary/detail projection separation, and
 foreign-project trace isolation.
 
+`AnalyticsServiceTest` covers bounded/default ranges, supported and rejected
+intervals, automatic bucket selection, bucket-cap rejection, severity counts,
+top-N limits, UTC bucket alignment, missing-fingerprint normalization, and
+empty project results. The histogram assertions exercise the MongoDB
+aggregation output and therefore protect the no-raw-event-loading path.
+
 The D2 query-plan review is a real-MongoDB integration test rather than a
 mocked repository check. Run it from `backend` with the root-project task path
 so the filter is not incorrectly applied to SDK subprojects:

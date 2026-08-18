@@ -596,3 +596,11 @@ At minimum, back up:
 - Worker bulk write succeeds with expected batch sizes.
 - Large time-range analytics are bounded/rejected.
 - Cross-project queries cannot be issued by repository methods without project scope.
+
+Analytics summary and histogram queries apply the project/time (and optional
+environment/service) `$match` before aggregation. Histogram buckets use
+MongoDB `$dateTrunc` with `timezone: "UTC"`, followed by grouped severity
+counters and an ascending bucket sort; the application does not load raw
+events to calculate the time series. Summary top-N aggregations are bounded
+server-side. Missing error fingerprints are normalized to `UNKNOWN_ERROR`
+inside the aggregation so they remain visible in top-error results.
