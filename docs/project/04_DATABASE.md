@@ -463,8 +463,16 @@ Every high-volume log query must:
 1. include `projectId`;
 2. include a bounded time range unless doing an exact selective lookup such as trace/request ID;
 3. apply `$match` as early as possible;
-4. avoid returning full stack traces when chart/list views need only summaries;
+4. use the summary projection for list views and load exception/context/tags only from the detail query;
 5. use cursor pagination, not deep skip-based pagination.
+
+The search service defaults omitted bounds to one hour, rejects ranges over the
+configured maximum (168 hours by default), and rejects malformed cursors. Its
+message search escapes user input as a literal case-insensitive pattern; it is
+not MongoDB full-text search and does not accept arbitrary regular expressions.
+Pagination seeks on `timestamp DESC, _id DESC`, so equal timestamps remain
+deterministic even if the prior page's document expires or is deleted before
+the next request.
 
 ---
 

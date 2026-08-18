@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { fetchLogs } from '../../services/api'
+import { fetchLogById, fetchLogs } from '../../services/api'
 import { LogExplorerPage } from './LogExplorerPage'
 
-vi.mock('../../services/api', () => ({ fetchLogs: vi.fn() }))
+vi.mock('../../services/api', () => ({ fetchLogById: vi.fn(), fetchLogs: vi.fn() }))
 
 describe('LogExplorerPage', () => {
   it('searches scoped logs and opens event details', async () => {
@@ -12,11 +12,17 @@ describe('LogExplorerPage', () => {
       events: [{
         id: 'event-1', timestamp: '2026-08-18T00:00:00Z', level: 'ERROR',
         service: 'checkout', environment: 'production', eventType: 'FAILURE',
-        message: 'Payment failed', receivedAt: '2026-08-18T00:00:01Z',
-        expireAt: '2026-08-25T00:00:01Z', organizationId: 'org-1',
-        projectId: 'demo-project', apiKeyId: 'key-1',
+        message: 'Payment failed', projectId: 'demo-project',
       }],
       hasMore: false,
+    })
+    vi.mocked(fetchLogById).mockResolvedValue({
+      id: 'event-1', timestamp: '2026-08-18T00:00:00Z', level: 'ERROR',
+      service: 'checkout', environment: 'production', eventType: 'FAILURE',
+      message: 'Payment failed', receivedAt: '2026-08-18T00:00:01Z',
+      expireAt: '2026-08-25T00:00:01Z', organizationId: 'org-1',
+      projectId: 'demo-project', apiKeyId: 'key-1',
+      exception: { type: 'PaymentException' },
     })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><LogExplorerPage /></QueryClientProvider>)
@@ -31,6 +37,8 @@ describe('LogExplorerPage', () => {
     }))
 
     fireEvent.click(screen.getByText('Payment failed'))
+    await waitFor(() => expect(screen.getByLabelText('Event details')).toHaveTextContent('PaymentException'))
     expect(screen.getByLabelText('Event details')).toHaveTextContent('event-1')
+    expect(fetchLogById).toHaveBeenCalledWith('demo-project', 'event-1')
   })
 })

@@ -749,22 +749,37 @@ pruning.
 
 ### Tasks
 
-- [ ] enforce required/default time range;
-- [ ] enforce maximum range;
-- [ ] enforce maximum page size;
-- [ ] validate opaque cursor;
-- [ ] test equal timestamps;
-- [ ] test deletion/expiry between pages;
-- [ ] ensure newest-first ordering is deterministic;
-- [ ] return summary projection for list;
-- [ ] return full detail only from detail endpoint;
-- [ ] document text-search limitations;
-- [ ] prevent regex/query abuse;
-- [ ] keep exact trace/request lookup project-scoped.
+- [x] enforce required/default time range;
+- [x] enforce maximum range;
+- [x] enforce maximum page size;
+- [x] validate opaque cursor;
+- [x] test equal timestamps;
+- [x] test deletion/expiry between pages;
+- [x] ensure newest-first ordering is deterministic;
+- [x] return summary projection for list;
+- [x] return full detail only from detail endpoint;
+- [x] document text-search limitations;
+- [x] prevent regex/query abuse;
+- [x] keep exact trace/request lookup project-scoped.
 
 ### Exit criteria
 
-- [ ] Search remains predictable with large collections and malformed client input.
+- [x] Search remains predictable with large collections and malformed client input.
+
+Evidence (2026-08-18): `LogQueryService` now defaults omitted bounds to one
+hour, enforces a configurable 168-hour maximum (with a 31-day hard cap), and
+rejects invalid ranges and page sizes with stable error codes. Limits default
+to 50 and reject values above the configured/server maximum instead of silently
+clamping. Cursors are strictly decoded and malformed values return
+`400 INVALID_CURSOR`; the seek predicate remains
+`timestamp DESC, _id DESC`, so equal timestamps are deterministic and a
+deleted/expired prior-page record does not break the next page. List queries
+use an explicit summary projection, while detail queries retain full event
+fields and both paths remain project-scoped. Message search is bounded and
+escapes input as a literal case-insensitive pattern, preventing user regex
+execution. `LogQueryServiceTest` covers these behaviors, including a foreign
+project sharing the same trace ID. The React Log Explorer now fetches the
+project-scoped detail endpoint only after an operator selects a summary row.
 
 ---
 

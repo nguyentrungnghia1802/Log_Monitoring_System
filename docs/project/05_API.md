@@ -292,6 +292,8 @@ Query parameters:
 ```text
 from=<ISO instant>
 to=<ISO instant>
+startTime=<ISO instant>       # legacy alias for from
+endTime=<ISO instant>         # legacy alias for to
 environment=production
 service=queue-service
 level=ERROR
@@ -305,11 +307,30 @@ limit=100
 
 Rules:
 
-- `from/to` required for ordinary browsing;
-- max supported range is configurable;
-- `limit` has server cap;
-- cursor is opaque;
+- `from/to` are the canonical bounded-range parameters; when omitted, the
+  server defaults to the most recent one hour;
+- `startTime/endTime` remain accepted as backward-compatible aliases;
+- the default maximum range is 168 hours (7 days), configurable through
+  `SEARCH_MAX_RANGE_HOURS` with a server hard cap of 31 days;
+- `limit` defaults to 50 and must be between 1 and 200 (or the lower configured
+  `SEARCH_MAX_PAGE_SIZE`); an over-limit value is rejected rather than silently
+  truncated;
+- `cursor` is opaque and encodes the `(timestamp, _id)` seek position; malformed
+  cursors return `400 INVALID_CURSOR`;
 - newest-first default.
+
+List items are summary projections containing the event ID, client event ID,
+timestamp, level, service, environment, event type, message, trace ID, request
+ID, project ID, and error fingerprint. Exception, context, tags, retention
+timestamps, organization ID, and API-key ID are returned only by the detail
+endpoint below. Clicking an event in the management UI therefore performs a
+second project-scoped detail request.
+
+The `search` parameter is a case-insensitive literal substring match against
+`message`, not a user-supplied regular expression or a full-text search. It is
+bounded to 128 characters by default; regex metacharacters are escaped. Exact
+trace/request filters remain project-scoped and still use the same bounded
+default time window.
 
 Response:
 
@@ -556,6 +577,12 @@ MALFORMED_REQUEST
 INGESTION_BACKPRESSURE
 DEPENDENCY_UNAVAILABLE
 SEARCH_RANGE_TOO_LARGE
+INVALID_CURSOR
+INVALID_TIME_RANGE
+INVALID_QUERY_PARAMETER
+SEARCH_PAGE_SIZE_TOO_LARGE
+SEARCH_FILTER_TOO_LONG
+SEARCH_QUERY_TOO_LONG
 ALERT_RULE_CONFLICT
 INTERNAL_ERROR
 ```

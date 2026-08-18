@@ -26,6 +26,14 @@ management:
 server:
   port: ${SERVER_PORT:8080}
 
+search:
+  default-range-hours: ${SEARCH_DEFAULT_RANGE_HOURS:1}
+  max-range-hours: ${SEARCH_MAX_RANGE_HOURS:168}
+  default-page-size: ${SEARCH_DEFAULT_PAGE_SIZE:50}
+  max-page-size: ${SEARCH_MAX_PAGE_SIZE:200}
+  max-search-length: ${SEARCH_MAX_SEARCH_LENGTH:128}
+  max-filter-length: ${SEARCH_MAX_FILTER_LENGTH:256}
+
 jwt:
   secret: ${JWT_SECRET:SuperSecretJwtSigningKeyWithMinimum256BitsLengthForHmacSha256!}
   expiration-ms: ${JWT_EXPIRATION_MS:900000}
