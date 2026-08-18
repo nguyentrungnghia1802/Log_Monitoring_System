@@ -16,7 +16,7 @@ exists but the contract, security boundary, or validation is incomplete.
 | FR-ALT-001/002/003/005/006/007/008/009 — validated rules, cooldown, durable explainable occurrences, adapters and audited retry | `AlertRuleController`, `AlertController`, `AlertService`, notification adapters, alert operations UI | `AlertServiceTest`, `AlertsPage.test.tsx`, `AlertRulesPage.test.tsx`, `Phase9SecurityTest` | [x] |
 | FR-AUTH-001/002 — login, revocable sessions, JWT and project membership checks | `AuthenticationService`, `JwtService`, `AuthSession`, `AuthContext`, `ProjectAuthorizationService`, `ProjectSecurityInterceptor` | `AuthControllerTest`, `JwtServiceTest`, `AuthFlow.test.tsx`, `ProjectAuthorizationServiceTest`, `Phase9SecurityTest` | [x] |
 | FR-AUTH-004/005 — hashed API-key creation and revocation | `ApiKeyService`, `ApiKeyController`, `ApiKeyAuthenticationFilter` | `Phase9SecurityTest`, `ApiKeyServiceTest` | [x] |
-| FR-OBS-001/003/004 — health and ingestion status | `SystemStatusController`, queue/worker metrics | `SystemStatusEndpointTest`, queue tests | [x] |
+| FR-OBS-001/002/003/004 — health, Prometheus, ingestion, and platform metrics | Actuator, `SystemStatusController`, queue/worker/persistence/Mongo/alert metrics | `SystemStatusEndpointTest`, `MongoCommandMetricsIntegrationTest`, queue/worker/persistence/alert tests | [x] |
 | Cross-project nested alert isolation | `AlertRuleRepository`, `AlertOccurrenceRepository`, `AlertService` use `(id, projectId)` lookups | `Phase9SecurityTest.doesNotExposeForeignProjectNestedAlertResources` | [x] |
 | Management project/API-key lifecycle | `ProjectController`, `ApiKeyController`, `ProjectManagementService`, `ApiKeysPage` | `ProjectControllerTest`, `Phase9SecurityTest`, `ApiKeysPage.test.tsx` | [~] |
 
@@ -35,6 +35,9 @@ exists but the contract, security boundary, or validation is incomplete.
   current project membership, filters before fan-out, and bounds session,
   subscription, channel, and transport buffers. Drops and authorization failures
   are exposed through low-cardinality Micrometer metrics.
+- Platform metrics now cover the documented HTTP, ingestion, queue, worker,
+  persistence, Mongo command, alert, JVM, and process signals. The Prometheus
+  path has an explicit reverse-proxy allowlist starting point under `ops/nginx`.
 - An earlier default multi-context run exposed an order/isolation-sensitive
   API-key failure. The controlled backend application suite now passes all 20
   tests with `./gradlew :test --no-parallel`; broader test-isolation hardening

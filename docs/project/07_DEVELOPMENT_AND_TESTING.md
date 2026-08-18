@@ -291,6 +291,41 @@ coordinator and worker drain markers. On POSIX it sends `kill -TERM` to the
 boot process. The shutdown trigger is exposed only by `application-test.yml`;
 it must never be enabled in a production profile.
 
+## 8. Platform metrics
+
+The backend uses Spring Boot Actuator/Micrometer for `http.server.requests`,
+`jvm.*`, and `process.*`. Application-specific names are deliberately
+low-cardinality and documented in `docs/project/02_SYSTEM_ARCHITECTURE.md`:
+
+```text
+ingestion.received
+ingestion.accepted
+ingestion.rejected.validation
+ingestion.rejected.backpressure
+ingestion.queue.depth
+ingestion.queue.capacity
+ingestion.worker.active
+ingestion.batch.size
+ingestion.persistence.duration
+ingestion.persistence.retries
+ingestion.persistence.failures
+mongodb.command.duration
+mongodb.command.errors
+alert.evaluations
+alert.triggered
+alert.delivery.success
+alert.delivery.failure
+alert.delivery.retry
+```
+
+`MongoCommandMetricsListener` bounds command tags to a known command set and
+does not tag database names, collections, event IDs, trace IDs, or messages.
+`SystemStatusEndpointTest` verifies real HTTP, JVM, and process meters;
+`MongoCommandMetricsIntegrationTest` verifies command timing against a real
+MongoDB container. The Prometheus endpoint must be restricted at the reverse
+proxy using `ops/nginx/actuator-metrics.conf`, with the example private ranges
+replaced by the actual scraper allowlist.
+
 ---
 
 ## 9. Load test plan

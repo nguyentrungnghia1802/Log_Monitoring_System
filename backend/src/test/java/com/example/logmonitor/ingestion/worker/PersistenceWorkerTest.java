@@ -58,6 +58,8 @@ class PersistenceWorkerTest {
         verify(persistenceService, times(2)).persist(anyList());
         assertEquals(1.0, meterRegistry.counter("ingestion.worker.persistence.failed_batches").count());
         assertEquals(1.0, meterRegistry.counter("ingestion.worker.persistence.failed_events").count());
+        assertEquals(2.0, meterRegistry.summary("ingestion.batch.size").count());
+        assertEquals(0.0, meterRegistry.get("ingestion.worker.active").gauge().value());
     }
 
     @Test
@@ -79,6 +81,7 @@ class PersistenceWorkerTest {
         verify(persistenceService).persist(List.of(queuedEvent));
         assertEquals(1.0, meterRegistry.counter("ingestion.worker.shutdown.remaining_events").count());
         assertEquals(1.0, meterRegistry.get("ingestion.worker.shutdown.queue_depth").gauge().value());
+        assertEquals(0.0, meterRegistry.get("ingestion.worker.active").gauge().value());
     }
 
     @Test

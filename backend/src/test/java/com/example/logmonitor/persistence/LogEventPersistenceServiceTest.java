@@ -69,6 +69,8 @@ class LogEventPersistenceServiceTest {
         verify(liveTailPublisher).publish(events);
         assertEquals(1.0, meterRegistry.counter("ingestion.persistence.events.saved").count());
         assertEquals(0.0, meterRegistry.counter("ingestion.persistence.events.failed").count());
+        assertEquals(1.0, meterRegistry.counter("ingestion.persistence.retries").count());
+        assertEquals(1L, meterRegistry.timer("ingestion.persistence.duration").count());
     }
 
     @Test
@@ -98,6 +100,9 @@ class LogEventPersistenceServiceTest {
         verify(liveTailPublisher, never()).publish(events);
         assertEquals(0.0, meterRegistry.counter("ingestion.persistence.events.saved").count());
         assertEquals(1.0, meterRegistry.counter("ingestion.persistence.events.failed").count());
+        assertEquals(2.0, meterRegistry.counter("ingestion.persistence.retries").count());
+        assertEquals(1.0, meterRegistry.counter("ingestion.persistence.failures").count());
+        assertEquals(1L, meterRegistry.timer("ingestion.persistence.duration").count());
     }
 
     private LogEvent createEvent(String message) {

@@ -33,6 +33,8 @@ class IngestionQueueTest {
         assertFalse(queue.offerAll(List.of(e3)));
         assertEquals(2, queue.size());
         assertEquals(1, queue.rejectedCount());
+        assertEquals(2.0, registry.counter("ingestion.accepted").count());
+        assertEquals(1.0, registry.counter("ingestion.rejected.backpressure").count());
     }
 
     @Test
@@ -73,7 +75,8 @@ class IngestionQueueTest {
 
     @Test
     void rejectsSingleAndBatchAdmissionAfterShutdown() {
-        IngestionQueue queue = new IngestionQueue(2, new SimpleMeterRegistry());
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        IngestionQueue queue = new IngestionQueue(2, registry);
         queue.stopAccepting();
 
         assertFalse(queue.isAccepting());
@@ -81,6 +84,8 @@ class IngestionQueueTest {
         assertFalse(queue.offerAll(List.of(createEvent("after-shutdown-batch"))));
         assertEquals(0, queue.size());
         assertEquals(2, queue.rejectedCount());
+        assertEquals(2.0, registry.counter("ingestion.rejected.shutdown").count());
+        assertEquals(0.0, registry.counter("ingestion.rejected.backpressure").count());
     }
 
     private LogEvent createEvent(String message) {

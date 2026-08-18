@@ -19,20 +19,24 @@ public class IngestionService {
     private final RetentionPolicyResolver retentionPolicyResolver;
     private final IngestionPayloadSanitizer payloadSanitizer;
     private final GracefulShutdownCoordinator shutdownCoordinator;
+    private final IngestionMetrics ingestionMetrics;
 
     public IngestionService(
         IngestionQueue ingestionQueue,
         RetentionPolicyResolver retentionPolicyResolver,
         IngestionPayloadSanitizer payloadSanitizer,
-        GracefulShutdownCoordinator shutdownCoordinator
+        GracefulShutdownCoordinator shutdownCoordinator,
+        IngestionMetrics ingestionMetrics
     ) {
         this.ingestionQueue = ingestionQueue;
         this.retentionPolicyResolver = retentionPolicyResolver;
         this.payloadSanitizer = payloadSanitizer;
         this.shutdownCoordinator = shutdownCoordinator;
+        this.ingestionMetrics = ingestionMetrics;
     }
 
     public AdmissionResult accept(IngestionRequest request, String apiKey) {
+        ingestionMetrics.recordReceived();
         String requestId = UUID.randomUUID().toString();
         if (!shutdownCoordinator.isAcceptingTraffic()) {
             return rejected(requestId, "INGESTION_SHUTTING_DOWN", "Ingestion is stopping for graceful shutdown");
@@ -73,6 +77,7 @@ public class IngestionService {
     }
 
     public AdmissionResult acceptBatch(BatchIngestionRequest request, String apiKey) {
+        ingestionMetrics.recordReceived();
         String requestId = UUID.randomUUID().toString();
         if (!shutdownCoordinator.isAcceptingTraffic()) {
             return rejected(requestId, "INGESTION_SHUTTING_DOWN", "Ingestion is stopping for graceful shutdown");

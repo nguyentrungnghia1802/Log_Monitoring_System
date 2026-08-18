@@ -7,6 +7,8 @@ import com.example.logmonitor.alerting.domain.AlertRuleRepository;
 import com.example.logmonitor.audit.application.AuditService;
 import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.lifecycle.GracefulShutdownCoordinator;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.example.logmonitor.notification.domain.AlertNotification;
 import com.example.logmonitor.notification.domain.AlertNotificationSender;
 import com.example.logmonitor.persistence.LogEventDocument;
@@ -44,6 +46,11 @@ public class AlertService {
     private final AuditService auditService;
     private final SensitiveDataRedactor redactor;
     private final GracefulShutdownCoordinator shutdownCoordinator;
+    private final Counter evaluationCounter;
+    private final Counter triggeredCounter;
+    private final Counter deliverySuccessCounter;
+    private final Counter deliveryFailureCounter;
+    private final Counter deliveryRetryCounter;
 
     public AlertService(
         AlertRuleRepository ruleRepository,
@@ -52,7 +59,8 @@ public class AlertService {
         AlertNotificationSender notificationSender,
         AuditService auditService,
         SensitiveDataRedactor redactor,
-        GracefulShutdownCoordinator shutdownCoordinator
+        GracefulShutdownCoordinator shutdownCoordinator,
+        MeterRegistry meterRegistry
     ) {
         this.ruleRepository = ruleRepository;
         this.occurrenceRepository = occurrenceRepository;
@@ -61,6 +69,21 @@ public class AlertService {
         this.auditService = auditService;
         this.redactor = redactor;
         this.shutdownCoordinator = shutdownCoordinator;
+        this.evaluationCounter = Counter.builder("alert.evaluations")
+            .description("Alert rules evaluated against a project window")
+            .register(meterRegistry);
+        this.triggeredCounter = Counter.builder("alert.triggered")
+            .description("Alert occurrences triggered after threshold evaluation")
+            .register(meterRegistry);
+        this.deliverySuccessCounter = Counter.builder("alert.delivery.success")
+            .description("Alert notifications delivered successfully")
+            .register(meterRegistry);
+        this.deliveryFailureCounter = Counter.builder("alert.delivery.failure")
+            .description("Alert notifications that failed delivery")
+            .register(meterRegistry);
+        this.deliveryRetryCounter = Counter.builder("alert.delivery.retry")
+            .description("Operator-requested alert notification retries")
+            .register(meterRegistry);
     }
 
     public List<AlertRule> getRules(String projectId) {
@@ -119,6 +142,7 @@ public class AlertService {
 
     public void evaluateRulesForProject(String projectId) {
         List<AlertRule> rules = ruleRepository.findByProjectIdAndEnabled(projectId, true);
+        evaluationCounter.increment(rules.size());
         Instant now = Instant.now();
 
         for (AlertRule rule : rules) {
@@ -153,6 +177,7 @@ public class AlertService {
 
     private void triggerAlert(AlertRule rule, long observedValue, Instant windowStart, Instant windowEnd) {
         Instant now = Instant.now();
+        triggeredCounter.increment();
 
         AlertOccurrence occurrence = new AlertOccurrence();
         occurrence.setRuleId(rule.getId());
@@ -214,9 +239,11 @@ public class AlertService {
         String safeError = result.success() ? null : sanitizeProviderError(result.errorDetails());
 
         if (result.success()) {
+            deliverySuccessCounter.increment();
             occurrence.setDeliveryStatus("DELIVERED");
             occurrence.setLastError(null);
         } else {
+            deliveryFailureCounter.increment();
             occurrence.setDeliveryStatus("FAILED");
             occurrence.setLastError(safeError);
         }
@@ -268,6 +295,7 @@ public class AlertService {
     ) {
         return occurrenceRepository.findByIdAndProjectId(alertId, projectId).map(occ -> {
             AlertRule rule = ruleRepository.findByIdAndProjectId(occ.getRuleId(), projectId).orElse(null);
+            deliveryRetryCounter.increment();
             dispatchNotification(occ, rule);
             auditService.logAction(actor, organizationId, projectId, "RETRY_NOTIFICATION", "ALERT_OCCURRENCE",
                 occ.getId(), "Alert notification delivery retried");

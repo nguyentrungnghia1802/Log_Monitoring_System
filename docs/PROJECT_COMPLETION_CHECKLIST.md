@@ -928,37 +928,51 @@ sends `SIGTERM` and checks the same shutdown markers.
 
 ### Required metric areas
 
-- [ ] HTTP rate/latency/status;
-- [ ] ingestion received;
-- [ ] ingestion accepted;
-- [ ] validation rejected;
-- [ ] backpressure rejected;
-- [ ] queue depth/capacity;
-- [ ] worker active;
-- [ ] batch size;
-- [ ] persistence duration;
-- [ ] persistence retries;
-- [ ] persistence failures;
-- [ ] failed events;
-- [ ] MongoDB command duration/errors;
+- [x] HTTP rate/latency/status;
+- [x] ingestion received;
+- [x] ingestion accepted;
+- [x] validation rejected;
+- [x] backpressure rejected;
+- [x] queue depth/capacity;
+- [x] worker active;
+- [x] batch size;
+- [x] persistence duration;
+- [x] persistence retries;
+- [x] persistence failures;
+- [x] failed events;
+- [x] MongoDB command duration/errors;
 - [x] live-tail sessions/subscriptions/sent/dropped;
 - [x] WebSocket authorization failures;
-- [ ] alert evaluations;
-- [ ] alerts triggered;
-- [ ] notification success/failure/retry;
-- [ ] JVM memory/GC/threads;
-- [ ] process CPU.
+- [x] alert evaluations;
+- [x] alerts triggered;
+- [x] notification success/failure/retry;
+- [x] JVM memory/GC/threads;
+- [x] process CPU.
 
 ### Rules
 
-- [ ] no high-cardinality labels;
-- [ ] no IDs/messages/trace IDs as tags;
-- [ ] metrics endpoint protected at infrastructure edge;
-- [ ] metric names documented.
+- [x] no high-cardinality labels;
+- [x] no IDs/messages/trace IDs as tags;
+- [x] metrics endpoint protected at infrastructure edge;
+- [x] metric names documented.
 
 ### Exit criteria
 
-- [ ] The platform can diagnose its own queue, worker, MongoDB, WebSocket, and alert health.
+- [x] The platform can diagnose its own queue, worker, MongoDB, WebSocket, and alert health.
+
+Evidence (2026-08-18): Spring Boot HTTP metrics and JVM/process binders are
+verified through the random-port `SystemStatusEndpointTest`. Ingestion queue
+metrics now use the documented `ingestion.*` names, including received,
+accepted, validation, backpressure, shutdown rejection, depth, capacity,
+worker activity, and batch size. `LogEventPersistenceService` exposes
+`ingestion.persistence.duration`, retries, failures, and failed event counts.
+`MongoCommandMetricsListener` records bounded `mongodb.command.duration` and
+`mongodb.command.errors` tags without database, collection, IDs, or messages.
+Alert evaluation, trigger, delivery success/failure, and retry counters are
+covered by `AlertServiceTest`; Mongo command wiring is covered by
+`MongoCommandMetricsIntegrationTest`. The edge allowlist example is
+`ops/nginx/actuator-metrics.conf`; production deployments must replace its
+private-network examples with the Prometheus scraper allowlist.
 
 ---
 
