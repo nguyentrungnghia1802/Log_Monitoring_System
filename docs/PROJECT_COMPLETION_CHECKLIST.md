@@ -1141,11 +1141,11 @@ example and the `202` server-admission limitation.
 ### Tasks
 
 - [ ] create a dedicated Log Monitoring project;
-- [ ] create separate API keys for local/staging/production;
-- [ ] add SDK dependency/configuration;
-- [ ] propagate `traceId` and `requestId`;
-- [ ] instrument high-value failures;
-- [ ] avoid logging sensitive LINE/payment credentials;
+- [~] create separate API keys for local/staging/production;
+- [x] add SDK dependency/configuration;
+- [x] propagate `traceId` and `requestId`;
+- [x] instrument high-value failures;
+- [x] avoid logging sensitive LINE/payment credentials;
 - [ ] verify events appear in Log Explorer;
 - [ ] verify trace correlation;
 - [ ] verify dashboard counts;
@@ -1157,19 +1157,37 @@ example and the `202` server-admission limitation.
 
 ### Recommended event types
 
-- [ ] `AUTH_LOGIN_FAILED`
-- [ ] `ORDER_CREATE_FAILED`
-- [ ] `PAYMENT_WEBHOOK_FAILED`
-- [ ] `QUEUE_CREATE_FAILED`
-- [ ] `QUEUE_TRANSITION_CONFLICT`
-- [ ] `LINE_PUSH_FAILED`
-- [ ] `EMAIL_DELIVERY_FAILED`
-- [ ] `DATABASE_QUERY_SLOW`
-- [ ] `SCHEDULER_JOB_FAILED`
+- [x] `AUTH_LOGIN_FAILED`
+- [x] `ORDER_CREATE_FAILED`
+- [x] `PAYMENT_WEBHOOK_FAILED`
+- [x] `QUEUE_CREATE_FAILED`
+- [x] `QUEUE_TRANSITION_CONFLICT`
+- [x] `LINE_PUSH_FAILED`
+- [x] `EMAIL_DELIVERY_FAILED`
+- [x] `DATABASE_QUERY_SLOW`
+- [x] `SCHEDULER_JOB_FAILED`
 
 ### Exit criteria
 
-- [ ] LINE Smart Queue is a real end-to-end consumer of the monitoring platform.
+- [~] LINE Smart Queue is a real end-to-end consumer of the monitoring platform.
+
+Evidence (2026-08-18): LINE Smart Queue Assistant `main` commit
+`cfe947ed68f27ee215b0b3738c1182951b08c65c` contains a native Node 20 source
+adapter under `apps/api/src/modules/log-monitoring/`. It is disabled by
+default, uses the batch ingestion contract with `X-API-Key`, propagates the
+request/trace context, bounds queue/batch/retry/flush behavior, sanitizes
+context and exceptions, and emits all nine recommended failure event types
+from auth, queue, staff, orders, payments, LINE, email, scheduler, and DB
+paths. The target repository passed 116 API suites/709 tests, 11 frontend
+files/17 tests, lint, typecheck, format check, and production build. The
+staging smoke command is `npm run log-monitoring:verify` from that repository.
+
+Manual platform acceptance is `BLOCKED_EXTERNAL`: this workspace has no
+owner-provisioned Log Monitoring project/API keys or running backend/provider
+endpoint, so Log Explorer, trace correlation, dashboard/Live Tail delivery,
+alert notification/cooldown, and key rotation cannot be truthfully marked as
+verified. The source configuration is prepared for one project-scoped key per
+environment without committing any secret.
 
 ---
 
@@ -1179,53 +1197,56 @@ example and the `202` server-admission limitation.
 
 ### Unit tests
 
-- [ ] event normalization;
-- [ ] retention resolution;
-- [ ] fingerprinting;
-- [ ] cursor encode/decode;
-- [ ] alert threshold boundary;
-- [ ] cooldown;
-- [ ] notification retry policy;
-- [ ] redaction;
-- [ ] role/capability decisions.
+- [x] event normalization;
+- [x] retention resolution;
+- [x] fingerprinting;
+- [x] cursor encode/decode;
+- [x] alert threshold boundary;
+- [x] cooldown;
+- [x] notification retry policy;
+- [x] redaction;
+- [x] role/capability decisions.
 
 ### Concurrency tests
 
-- [ ] bounded single admission;
-- [ ] atomic batch admission;
-- [ ] concurrent batch producers;
-- [ ] max-size flush;
-- [ ] max-wait flush;
-- [ ] interruption;
-- [ ] retry exhaustion;
-- [ ] shutdown drain.
+- [x] bounded single admission;
+- [x] atomic batch admission;
+- [x] concurrent batch producers;
+- [x] max-size flush;
+- [x] max-wait flush;
+- [x] interruption;
+- [x] retry exhaustion;
+- [x] shutdown drain.
 
 ### MongoDB integration tests
 
-- [ ] TTL index metadata;
-- [ ] compound indexes;
-- [ ] bulk write;
-- [ ] cursor pagination;
-- [ ] search filters;
-- [ ] trace/request query;
-- [ ] analytics pipelines;
-- [ ] alert-rule/occurrence persistence;
-- [ ] project isolation.
+- [x] TTL index metadata;
+- [x] compound indexes;
+- [x] bulk write;
+- [x] cursor pagination;
+- [x] search filters;
+- [x] trace/request query;
+- [x] analytics pipelines;
+- [x] alert-rule/occurrence persistence;
+- [x] project isolation.
 
 ### API tests
 
-- [ ] success/error envelopes;
-- [ ] stable error codes;
-- [ ] auth;
-- [ ] roles;
-- [ ] API-key lifecycle;
-- [ ] ingestion validation;
-- [ ] search limits;
-- [ ] alert operations.
+- [x] success/error envelopes;
+- [x] stable error codes;
+- [x] auth;
+- [x] roles;
+- [x] API-key lifecycle;
+- [x] ingestion validation;
+- [x] search limits;
+- [x] alert operations.
 
 ### Exit criteria
 
-- [ ] A clean backend test run passes using isolated MongoDB.
+- [x] A clean backend test run passes using isolated MongoDB.
+
+Evidence (2026-08-18): from `backend`,
+`$env:SPRING_PROFILES_ACTIVE='test'; $env:MONGODB_URI='mongodb://root:example_password@localhost:27017/log_monitor_test?authSource=admin'; ./gradlew clean test --no-parallel` completed `BUILD SUCCESSFUL`. The run includes the Testcontainers MongoDB schema/index, query-plan, health/readiness, shutdown, API, alert, persistence, and SDK module suites. Boundary tests now explicitly cover exact alert thresholds, below-threshold suppression, cooldown expiry, and interruption-safe persistence retry backoff.
 
 ---
 
@@ -1233,25 +1254,31 @@ example and the `202` server-admission limitation.
 
 ### Tasks
 
-- [ ] authentication state;
-- [ ] protected routes;
-- [ ] project selector;
-- [ ] log filters;
-- [ ] cursor load-more;
-- [ ] detail drawer;
-- [ ] empty/error/retry states;
-- [ ] dashboard charts;
-- [ ] live-tail connection states;
-- [ ] pause/resume/clear;
-- [ ] bounded browser buffer;
-- [ ] alert rule forms;
-- [ ] acknowledgement/retry;
-- [ ] role-based action visibility;
-- [ ] API-key one-time secret screen.
+- [x] authentication state;
+- [x] protected routes;
+- [x] project selector;
+- [x] log filters;
+- [x] cursor load-more;
+- [x] detail drawer;
+- [x] empty/error/retry states;
+- [x] dashboard charts;
+- [x] live-tail connection states;
+- [x] pause/resume/clear;
+- [x] bounded browser buffer;
+- [x] alert rule forms;
+- [x] acknowledgement/retry;
+- [x] role-based action visibility;
+- [x] API-key one-time secret screen.
 
 ### Exit criteria
 
-- [ ] Critical UI behaviors are tested beyond build/typecheck.
+- [x] Critical UI behaviors are tested beyond build/typecheck.
+
+Evidence (2026-08-18): frontend Vitest now covers Log Explorer cursor
+pagination, filter/detail, empty/error states, and Live Tail connection,
+pause/resume buffering, filtering, clearing, and bounded history behavior.
+The full frontend run passed 11 files/17 tests; lint, typecheck, and Vite
+production build also passed.
 
 ---
 

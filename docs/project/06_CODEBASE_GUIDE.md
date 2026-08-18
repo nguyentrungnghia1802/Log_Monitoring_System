@@ -208,6 +208,26 @@ client or a network-free no-op, and adds Actuator health plus Micrometer
 outcome/queue signals. It is disabled by default and is registered through
 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
 
+### 7.2 LINE Smart Queue source adapter
+
+The LINE Smart Queue Assistant is maintained in the sibling
+`LINE_Smart_Queue_Assistant` repository. Its Node 20 API uses a small native
+HTTP adapter under `apps/api/src/modules/log-monitoring/` rather than coupling
+the TypeScript application to the Java SDK. The adapter sends the platform
+batch contract to `/api/v1/ingest/logs/batch` with a project-scoped
+`X-API-Key`, and remains disabled unless `LOG_MONITORING_ENABLED=true` plus an
+environment-specific endpoint/key are supplied.
+
+The source integration is fail-open and bounded: request/trace correlation is
+captured through AsyncLocalStorage/OpenTelemetry, queue and batch sizes are
+fixed, retries honor bounded `Retry-After`, shutdown flush is time-limited,
+and context/exception values pass through the source sanitizer before
+submission. The source emits stable failure events such as
+`QUEUE_CREATE_FAILED`, `PAYMENT_WEBHOOK_FAILED`, `LINE_PUSH_FAILED`, and
+`DATABASE_QUERY_SLOW` without including LINE user IDs, payment credentials,
+API keys, tokens, or raw provider payloads. `npm run log-monitoring:verify`
+performs a staging-only admission smoke test and prints no secret.
+
 ---
 
 ## 8. Error handling
