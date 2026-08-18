@@ -13,6 +13,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,5 +48,18 @@ class SystemStatusEndpointTest {
         mockMvc.perform(get("/api/v1/system/ingestion-status"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("queueCapacity")));
+    }
+
+    @Test
+    void readinessIncludesMongoHealthWhenMongoIsAvailable() throws Exception {
+        Assumptions.assumeTrue(
+            DockerClientFactory.instance().isDockerAvailable(),
+            "Docker is required to run Testcontainers-based MongoDB integration tests"
+        );
+
+        mockMvc.perform(get("/actuator/health/readiness"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"))
+            .andExpect(jsonPath("$.components.mongo.status").value("UP"));
     }
 }

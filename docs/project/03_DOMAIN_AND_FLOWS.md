@@ -390,10 +390,18 @@ Actual values remain configurable.
 
 ### MongoDB unavailable
 
-- readiness `503`;
-- workers retry within configured bounds;
-- queue depth increases up to capacity;
-- new ingestion is rejected once capacity is exhausted.
+- the readiness health group includes `readinessState` and `mongo`, so
+  `/actuator/health/readiness` returns `503` while MongoDB is unavailable;
+- persistence workers retry within configured bounds; request threads only
+  perform bounded queue admission and never sleep for persistence retry;
+- queue depth increases only up to the configured capacity;
+- new ingestion is rejected with `503 INGESTION_BACKPRESSURE` and
+  `Retry-After: 1` once capacity is exhausted;
+- persistence failure and shutdown queue-depth metrics make terminal failures
+  and remaining in-memory work observable without logging payloads or secrets.
+
+`/api/v1/system/ingestion-status` remains operational telemetry for queue and
+worker state; it is not a replacement for the readiness health endpoint.
 
 ### WebSocket failure
 

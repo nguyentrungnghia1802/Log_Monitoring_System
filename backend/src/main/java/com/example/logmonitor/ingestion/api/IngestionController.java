@@ -2,6 +2,7 @@ package com.example.logmonitor.ingestion.api;
 
 import com.example.logmonitor.ingestion.application.IngestionService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,9 +45,15 @@ public class IngestionController {
             ));
         }
 
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+        return backpressureResponse(result.message());
+    }
+
+    private ResponseEntity<Map<String, Object>> backpressureResponse(String message) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .header(HttpHeaders.RETRY_AFTER, "1")
+            .body(Map.of(
             "accepted", false,
-            "error", Map.of("code", "INGESTION_BACKPRESSURE", "message", result.message())
+            "error", Map.of("code", "INGESTION_BACKPRESSURE", "message", message)
         ));
     }
 
@@ -72,9 +79,6 @@ public class IngestionController {
             ));
         }
 
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-            "accepted", false,
-            "error", Map.of("code", "INGESTION_BACKPRESSURE", "message", result.message())
-        ));
+        return backpressureResponse(result.message());
     }
 }

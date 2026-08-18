@@ -4,6 +4,9 @@ import com.example.logmonitor.common.security.SensitiveDataRedactor;
 import com.example.logmonitor.ingestion.domain.LogEvent;
 import com.example.logmonitor.ingestion.infrastructure.IngestionQueue;
 import com.example.logmonitor.persistence.LogEventPersistenceService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class PersistenceWorker {
@@ -28,6 +32,10 @@ public class PersistenceWorker {
     private final int batchMaxSize;
     private final long maxWaitMs;
     private final SensitiveDataRedactor redactor;
+    private final Counter failedBatchCounter;
+    private final Counter failedEventCounter;
+    private final Counter shutdownRemainingEventCounter;
+    private final AtomicInteger shutdownQueueDepth = new AtomicInteger();
     private volatile boolean running = true;
     private ExecutorService executorService;
 
@@ -37,7 +45,8 @@ public class PersistenceWorker {
         @Value("${ingestion.workers:4}") int workerCount,
         @Value("${ingestion.batch.max-size:500}") int batchMaxSize,
         @Value("${ingestion.batch.max-wait-ms:500}") long maxWaitMs,
-        SensitiveDataRedactor redactor
+        SensitiveDataRedactor redactor,
+        MeterRegistry meterRegistry
     ) {
         this.ingestionQueue = ingestionQueue;
         this.persistenceService = persistenceService;
@@ -45,6 +54,18 @@ public class PersistenceWorker {
         this.batchMaxSize = batchMaxSize;
         this.maxWaitMs = maxWaitMs;
         this.redactor = redactor;
+        this.failedBatchCounter = Counter.builder("ingestion.worker.persistence.failed_batches")
+            .description("Batches rejected after persistence retry exhaustion")
+            .register(meterRegistry);
+        this.failedEventCounter = Counter.builder("ingestion.worker.persistence.failed_events")
+            .description("Events in batches rejected after persistence retry exhaustion")
+            .register(meterRegistry);
+        this.shutdownRemainingEventCounter = Counter.builder("ingestion.worker.shutdown.remaining_events")
+            .description("Events observed in the ingestion queue at worker shutdown")
+            .register(meterRegistry);
+        Gauge.builder("ingestion.worker.shutdown.queue_depth", shutdownQueueDepth, AtomicInteger::get)
+            .description("Queue depth observed when graceful worker shutdown began")
+            .register(meterRegistry);
     }
 
     @PostConstruct
@@ -63,6 +84,11 @@ public class PersistenceWorker {
     @PreDestroy
     public void shutdown() throws InterruptedException {
         log.info("Initiating PersistenceWorker graceful shutdown...");
+        int queuedAtShutdown = ingestionQueue.size();
+        shutdownQueueDepth.set(queuedAtShutdown);
+        if (queuedAtShutdown > 0) {
+            shutdownRemainingEventCounter.increment(queuedAtShutdown);
+        }
         running = false;
 
         if (executorService != null) {
@@ -73,23 +99,32 @@ public class PersistenceWorker {
         }
 
         // Graceful drain remaining events in queue
-        drainRemainingEvents();
+        int drainedEvents = drainRemainingEvents();
+        log.info(
+            "Completed graceful drain of ingestion queue: queuedAtShutdown={} drainedEvents={} remainingQueueDepth={}",
+            queuedAtShutdown,
+            drainedEvents,
+            ingestionQueue.size()
+        );
     }
 
-    private void drainRemainingEvents() {
+    private int drainRemainingEvents() {
         List<LogEvent> remaining = new ArrayList<>();
+        int drainedEvents = 0;
         LogEvent event;
         while ((event = ingestionQueue.poll()) != null) {
             remaining.add(event);
             if (remaining.size() >= batchMaxSize) {
-                tryPersist(remaining);
+                tryPersist(List.copyOf(remaining));
+                drainedEvents += remaining.size();
                 remaining.clear();
             }
         }
         if (!remaining.isEmpty()) {
-            tryPersist(remaining);
+            tryPersist(List.copyOf(remaining));
+            drainedEvents += remaining.size();
         }
-        log.info("Completed graceful drain of ingestion queue");
+        return drainedEvents;
     }
 
     private void runLoop() {
@@ -138,6 +173,8 @@ public class PersistenceWorker {
             persistenceService.persist(batch);
             log.debug("Persisted worker batch size={}", batch.size());
         } catch (Exception ex) {
+            failedBatchCounter.increment();
+            failedEventCounter.increment(batch.size());
             log.error(
                 "Failed to persist batch of size {}: type={} message={}",
                 batch.size(),

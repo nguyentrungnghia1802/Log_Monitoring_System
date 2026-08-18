@@ -238,6 +238,20 @@ TTL deletion timing itself should not use fragile exact-second assertions.
 7. restore MongoDB;
 8. verify workers recover and queue drains where retries have not been exhausted.
 
+The E1 automated failure-injection evidence covers the bounded and observable
+failure boundary. `LogEventPersistenceServiceTest` verifies retry success,
+retry exhaustion after three attempts, terminal-failure counters, and redacted
+exception logging. `PersistenceWorkerTest` verifies that a worker continues
+with the next batch after a persistence exception and records shutdown drain
+metrics. `IngestionQueueTest` exercises concurrent single-event and all-or-
+reject batch admission, while `IngestionControllerBackpressureTest` verifies
+the `503` response and `Retry-After: 1` header. The real-MongoDB
+`MongoSchemaAndIndexIntegrationTest` stops and restarts MongoDB and verifies
+that persistence recovers with the restarted container. Finally,
+`MongoHealthReadinessIntegrationTest` verifies readiness transitions from
+`UP/200` to `DOWN/503` when MongoDB stops. These tests do not log event
+payloads, credentials, or secrets.
+
 ### Notification outage
 
 - provider mock throws;

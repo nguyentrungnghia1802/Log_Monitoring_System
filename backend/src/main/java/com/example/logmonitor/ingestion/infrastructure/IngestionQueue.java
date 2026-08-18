@@ -50,7 +50,7 @@ public class IngestionQueue {
         return queue.remainingCapacity() >= count;
     }
 
-    public boolean offer(LogEvent event) {
+    public synchronized boolean offer(LogEvent event) {
         boolean accepted = queue.offer(event);
         if (accepted) {
             acceptedCounter.incrementAndGet();
