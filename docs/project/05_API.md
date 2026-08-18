@@ -76,7 +76,9 @@ Backpressure:
 }
 ```
 
-Status: `503`.
+Status: `503` with `Retry-After: 1` (seconds). The header gives clients a
+bounded retry hint; it does not mean that the rejected event was persisted or
+accepted.
 
 ---
 

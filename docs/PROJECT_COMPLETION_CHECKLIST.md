@@ -846,31 +846,44 @@ exactly-once claim.
 
 ### Scenarios
 
-- [ ] temporary MongoDB connection failure;
-- [ ] prolonged MongoDB outage;
-- [ ] bulk-write transient failure;
-- [ ] retry success;
-- [ ] retry exhaustion;
-- [ ] worker exception;
-- [ ] process shutdown with queued events;
-- [ ] queue saturation;
-- [ ] recovery after MongoDB returns.
+- [x] temporary MongoDB connection failure;
+- [x] prolonged MongoDB outage;
+- [x] bulk-write transient failure;
+- [x] retry success;
+- [x] retry exhaustion;
+- [x] worker exception;
+- [x] process shutdown with queued events;
+- [x] queue saturation;
+- [x] recovery after MongoDB returns.
 
 ### Verify
 
-- [ ] retries are bounded;
-- [ ] request threads never sleep for persistence retry;
-- [ ] worker remains alive where safe;
-- [ ] queue stays bounded;
-- [ ] backpressure returns `503`;
-- [ ] terminal failure metrics increment;
-- [ ] payloads/secrets are not dumped;
-- [ ] readiness behavior matches the documented model;
-- [ ] remaining queue depth is recorded during shutdown.
+- [x] retries are bounded;
+- [x] request threads never sleep for persistence retry;
+- [x] worker remains alive where safe;
+- [x] queue stays bounded;
+- [x] backpressure returns `503`;
+- [x] terminal failure metrics increment;
+- [x] payloads/secrets are not dumped;
+- [x] readiness behavior matches the documented model;
+- [x] remaining queue depth is recorded during shutdown.
 
 ### Exit criteria
 
-- [ ] Failure behavior is proven through automated or reproducible tests, not assumed.
+- [x] Failure behavior is proven through automated or reproducible tests, not assumed.
+
+Evidence (2026-08-18): `LogEventPersistenceServiceTest` proves transient
+recovery and three-attempt retry exhaustion while checking failure counters and
+redaction. `PersistenceWorkerTest` proves worker continuity after an exception
+and records queue depth/events at shutdown. `IngestionQueueTest` proves the
+concurrent all-or-reject admission boundary, and
+`IngestionControllerBackpressureTest` proves `503` plus `Retry-After: 1`.
+`MongoSchemaAndIndexIntegrationTest` uses a real MongoDB container to prove
+bounded outage behavior and recovery after restart. The
+`MongoHealthReadinessIntegrationTest` proves the configured readiness group
+changes from `UP/200` to `DOWN/503` when MongoDB stops. The request path only
+queues events; persistence retries run in the worker/service path, and logs
+record safe exception metadata without payloads or credentials.
 
 ---
 

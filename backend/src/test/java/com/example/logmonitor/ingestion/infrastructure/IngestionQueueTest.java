@@ -6,6 +6,11 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,6 +33,42 @@ class IngestionQueueTest {
         assertFalse(queue.offerAll(List.of(e3)));
         assertEquals(2, queue.size());
         assertEquals(1, queue.rejectedCount());
+    }
+
+    @Test
+    void concurrentSingleAndBatchAdmissionNeverPartiallyAddsTheBatch() throws Exception {
+        IngestionQueue queue = new IngestionQueue(2, new SimpleMeterRegistry());
+        LogEvent first = createEvent("batch-1");
+        LogEvent second = createEvent("batch-2");
+        LogEvent single = createEvent("single");
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        Future<Boolean> batchResult = executor.submit(() -> {
+            start.await();
+            return queue.offerAll(List.of(first, second));
+        });
+        Future<Boolean> singleResult = executor.submit(() -> {
+            start.await();
+            return queue.offer(single);
+        });
+        start.countDown();
+
+        boolean batchAccepted = batchResult.get(2, TimeUnit.SECONDS);
+        boolean singleAccepted = singleResult.get(2, TimeUnit.SECONDS);
+        executor.shutdownNow();
+
+        if (batchAccepted) {
+            assertFalse(singleAccepted);
+            assertEquals(2, queue.size());
+            assertEquals(first, queue.poll());
+            assertEquals(second, queue.poll());
+        } else if (singleAccepted) {
+            assertEquals(1, queue.size());
+            assertEquals(single, queue.poll());
+        } else {
+            assertEquals(0, queue.size());
+        }
     }
 
     private LogEvent createEvent(String message) {

@@ -17,6 +17,9 @@ management:
       show-details: always
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo
   health:
     livenessstate:
       enabled: true

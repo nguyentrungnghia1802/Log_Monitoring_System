@@ -2,7 +2,12 @@ package com.example.logmonitor.persistence;
 
 import com.example.logmonitor.ingestion.api.IngestionRequest;
 import com.example.logmonitor.ingestion.domain.LogEvent;
+import com.example.logmonitor.common.security.RedactionProperties;
+import com.example.logmonitor.common.security.SensitiveDataRedactor;
+import com.example.logmonitor.livetail.application.LiveTailPublisher;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,9 +27,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import static com.mongodb.client.model.Filters.eq;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -36,7 +43,11 @@ class MongoSchemaAndIndexIntegrationTest {
 
     @DynamicPropertySource
     static void mongoProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.uri", MONGO::getReplicaSetUrl);
+        registry.add("spring.data.mongodb.uri", () -> {
+            String uri = MONGO.getReplicaSetUrl();
+            return uri + (uri.contains("?") ? "&" : "?")
+                + "serverSelectionTimeoutMS=500&connectTimeoutMS=500";
+        });
     }
 
     @Autowired private MongoTemplate mongoTemplate;
@@ -98,6 +109,48 @@ class MongoSchemaAndIndexIntegrationTest {
     }
 
     @Test
+    void retriesAfterMongoOutageAndPersistsAfterContainerRecovery() throws Exception {
+        LogEvent event = LogEvent.of(
+            new IngestionRequest(
+                "outage-recovery-event", Instant.now(), "ERROR", "queue-service", "production", "MONGO_OUTAGE",
+                "Mongo outage recovery", null, null, null, null, null
+            ),
+            "org-1",
+            "project-1",
+            "api-key-1",
+            3600
+        );
+
+        MONGO.stop();
+        assertThrows(RuntimeException.class, () -> persistenceService.persist(List.of(event)));
+
+        MONGO.start();
+        String recoveredUri = MONGO.getReplicaSetUrl();
+        try (MongoClient recoveredClient = MongoClients.create(recoveredUri)) {
+            MongoTemplate recoveredTemplate = new MongoTemplate(recoveredClient, "test");
+            awaitMongo(() -> {
+                try {
+                    recoveredTemplate.getDb().runCommand(new Document("ping", 1));
+                    return true;
+                } catch (RuntimeException ex) {
+                    return false;
+                }
+            });
+            LogEventPersistenceService recoveredPersistenceService = new LogEventPersistenceService(
+                recoveredTemplate,
+                mock(LiveTailPublisher.class),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
+                new SensitiveDataRedactor(new RedactionProperties())
+            );
+            recoveredPersistenceService.persist(List.of(event));
+
+            assertNotNull(recoveredTemplate.getCollection("log_events")
+                .find(eq("event_id", "outage-recovery-event"))
+                .first());
+        }
+    }
+
+    @Test
     void initializesTtlCriticalCompoundAndConfigurationUniqueIndexes() {
         Map<String, Document> logIndexes = indexes("log_events");
         assertIndex(logIndexes, "ttl_expire", new Document("expire_at", 1));
@@ -138,5 +191,16 @@ class MongoSchemaAndIndexIntegrationTest {
             .findFirst()
             .orElseThrow(() -> new AssertionError("Missing unique index " + expectedKeys + " on " + collectionName));
         assertEquals(Boolean.TRUE, index.getBoolean("unique"));
+    }
+
+    private void awaitMongo(BooleanSupplier condition) throws InterruptedException {
+        long deadline = System.nanoTime() + 15_000_000_000L;
+        while (System.nanoTime() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(100);
+        }
+        fail("MongoDB did not recover within the test deadline");
     }
 }
