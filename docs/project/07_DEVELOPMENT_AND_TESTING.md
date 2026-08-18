@@ -200,6 +200,13 @@ top-N limits, UTC bucket alignment, missing-fingerprint normalization, and
 empty project results. The histogram assertions exercise the MongoDB
 aggregation output and therefore protect the no-raw-event-loading path.
 
+The D5 duplicate policy is covered by `MongoSchemaAndIndexIntegrationTest`,
+which persists two events with the same client `eventId` and verifies two
+distinct server documents, and by `LogMonitoringClientTest`, which measures a
+temporary `503` followed by `202` and verifies that the SDK sends the exact
+same event body/event ID on both attempts. These tests are deterministic retry
+harnesses, not a claim about production traffic retry rates.
+
 The D2 query-plan review is a real-MongoDB integration test rather than a
 mocked repository check. Run it from `backend` with the root-project task path
 so the filter is not incorrectly applied to SDK subprojects:

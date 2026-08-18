@@ -258,6 +258,16 @@ Body:
 }
 ```
 
+`eventId` is an optional producer identifier, not the server's Mongo `_id`.
+If a producer retries a request, it should reuse the same `eventId` when it
+wants the attempts to be correlated. V1 does not deduplicate that value: two
+accepted submissions with the same `eventId` become two immutable log
+documents and are counted twice by search and analytics. This behavior is the
+same for single and batch ingestion, and the API never promises exactly-once
+ingestion. `202 Accepted` still means only admission to the bounded
+process-memory queue; a retry after an uncertain response can therefore
+produce a duplicate event.
+
 ### Batch
 
 ```http
