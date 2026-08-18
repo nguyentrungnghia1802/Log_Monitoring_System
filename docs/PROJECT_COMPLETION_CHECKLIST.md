@@ -1311,7 +1311,25 @@ production build also passed.
 
 ### Exit criteria
 
-- [ ] The main operator journey passes in a real browser.
+- [!] The main operator journey passes in a real browser.
+
+Evidence (2026-08-18): the G3 local-run prerequisite is now explicit. The
+Vite development proxy accepts `VITE_BACKEND_URL` for REST and WebSocket
+forwarding, and Live Tail accepts `VITE_WS_URL`; this permits the UI to run on
+`15173` against a backend on `18080` when the default `8080` port is occupied.
+The backend health endpoint returned `200` and the Vite page returned `200`.
+Frontend validation passed with 11 test files/17 tests, lint, typecheck, and
+production build.
+The backend `./gradlew test --no-parallel` and `./gradlew build --no-parallel`
+also passed; an initial clean run exposed a transient SDK retry-test timing
+failure, and the isolated test followed by the full rerun passed.
+
+The real-browser portion is `BLOCKED_EXTERNAL`: the available browser runtime
+failed before opening or interacting with the page on repeated attempts with
+`failed to write kernel assets: The system cannot find the path specified.
+(os error 3)`. Consequently no G3 required-path or cross-tenant checkbox is
+marked complete, and the runtime error must be resolved before claiming the
+operator journey or tenant-isolation E2E evidence.
 
 ---
 

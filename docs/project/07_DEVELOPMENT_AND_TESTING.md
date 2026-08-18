@@ -22,6 +22,24 @@ backend    : 8080
 mongodb    : 27017
 ```
 
+The Vite development proxy defaults to `http://localhost:8080`. If that port
+is already used by another local service, run the backend on an alternate port
+and pass matching frontend variables:
+
+```powershell
+$env:SERVER_PORT='18080'
+./gradlew bootRun
+
+$env:VITE_BACKEND_URL='http://localhost:18080'
+$env:VITE_WS_URL='ws://localhost:18080/ws-logs'
+npm run dev -- --host 127.0.0.1 --port 15173
+```
+
+`VITE_BACKEND_URL` controls the `/api` and `/ws-logs` development proxy
+targets. `VITE_WS_URL` controls the Live Tail STOMP connection. These are
+development-only overrides; production deployments should provide the
+frontend and backend through their normal configured origin.
+
 Example:
 
 ```bash
@@ -512,6 +530,11 @@ admission. It does not claim MongoDB durability. The remaining Log Explorer,
 Live Tail, dashboard, alert notification/cooldown, and key rotation checks
 must be performed against an owner-provisioned running platform; without that
 external state they remain `BLOCKED_EXTERNAL` in the master checklist.
+
+For the G3 browser acceptance path, use a real browser against the local UI
+and record each completed step in `docs/PROJECT_COMPLETION_CHECKLIST.md`.
+The backend health endpoint and an HTTP `200` from the Vite page are only
+startup checks; they do not count as browser E2E evidence.
 
 ---
 
