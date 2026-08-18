@@ -1,4 +1,4 @@
-export interface LogEvent {
+export interface LogEventSummary {
     id: string
     eventId?: string
     timestamp: string
@@ -9,19 +9,22 @@ export interface LogEvent {
     message: string
     traceId?: string
     requestId?: string
-    exception?: Record<string, unknown>
-    context?: Record<string, unknown>
-    tags?: Record<string, unknown>
-    receivedAt: string
-    expireAt: string
-    organizationId: string
     projectId: string
-    apiKeyId: string
     errorFingerprint?: string
 }
 
+export interface LogEvent extends LogEventSummary {
+    exception?: Record<string, unknown>
+    context?: Record<string, unknown>
+    tags?: Record<string, unknown>
+    receivedAt?: string
+    expireAt?: string
+    organizationId: string
+    apiKeyId: string
+}
+
 export interface LogSearchResponse {
-    events: LogEvent[]
+    events: LogEventSummary[]
     nextCursor?: string
     hasMore: boolean
 }

@@ -189,6 +189,11 @@ Test:
 - top services/errors;
 - authorization repository scope.
 
+`LogQueryServiceTest` also covers bounded default/max ranges, rejected page
+sizes, malformed cursors, literal (escaped) message search, equal-timestamp
+cursor pagination after deletion, summary/detail projection separation, and
+foreign-project trace isolation.
+
 The D2 query-plan review is a real-MongoDB integration test rather than a
 mocked repository check. Run it from `backend` with the root-project task path
 so the filter is not incorrectly applied to SDK subprojects:

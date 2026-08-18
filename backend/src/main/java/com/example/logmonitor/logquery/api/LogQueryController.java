@@ -26,6 +26,8 @@ public class LogQueryController {
         @PathVariable("projectId") String projectId,
         @RequestParam(value = "startTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
         @RequestParam(value = "endTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime,
+        @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+        @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
         @RequestParam(value = "level", required = false) String level,
         @RequestParam(value = "service", required = false) String service,
         @RequestParam(value = "environment", required = false) String environment,
@@ -35,10 +37,12 @@ public class LogQueryController {
         @RequestParam(value = "errorFingerprint", required = false) String errorFingerprint,
         @RequestParam(value = "search", required = false) String search,
         @RequestParam(value = "cursor", required = false) String cursor,
-        @RequestParam(value = "limit", defaultValue = "50") int limit
+        @RequestParam(value = "limit", required = false) Integer limit
     ) {
+        Instant resolvedStartTime = startTime != null ? startTime : from;
+        Instant resolvedEndTime = endTime != null ? endTime : to;
         LogSearchResponse response = logQueryService.searchLogs(
-            projectId, startTime, endTime, level, service, environment,
+            projectId, resolvedStartTime, resolvedEndTime, level, service, environment,
             eventType, traceId, requestId, errorFingerprint, search, cursor, limit
         );
         return ResponseEntity.ok(response);

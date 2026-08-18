@@ -5,10 +5,25 @@ import java.util.List;
 import java.util.Map;
 
 public record LogSearchResponse(
-    List<LogEventResponse> events,
+    List<LogEventSummary> events,
     String nextCursor,
     boolean hasMore
 ) {
+    public record LogEventSummary(
+        String id,
+        String eventId,
+        Instant timestamp,
+        String level,
+        String service,
+        String environment,
+        String eventType,
+        String message,
+        String traceId,
+        String requestId,
+        String projectId,
+        String errorFingerprint
+    ) {}
+
     public record LogEventResponse(
         String id,
         String eventId,

@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchLogs } from '../../services/api'
-import type { LogEvent, LogSearchParams } from '../../types/log'
+import { fetchLogById, fetchLogs } from '../../services/api'
+import type { LogSearchParams } from '../../types/log'
 
 const levelStyles: Record<string, string> = {
   ERROR: 'bg-rose-100 text-rose-800',
@@ -14,7 +14,7 @@ export function LogExplorerPage() {
   const [projectId, setProjectId] = useState('demo-project')
   const [filters, setFilters] = useState({ level: '', service: '', search: '' })
   const [queryFilters, setQueryFilters] = useState(filters)
-  const [selected, setSelected] = useState<LogEvent | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const params = useMemo<LogSearchParams>(() => ({
     projectId,
@@ -24,6 +24,12 @@ export function LogExplorerPage() {
     limit: 100,
   }), [projectId, queryFilters])
   const logs = useQuery({ queryKey: ['logs', params], queryFn: () => fetchLogs(params), enabled: Boolean(projectId), retry: false })
+  const detail = useQuery({
+    queryKey: ['log-detail', projectId, selectedId],
+    queryFn: () => fetchLogById(projectId, selectedId as string),
+    enabled: Boolean(projectId && selectedId),
+    retry: false,
+  })
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -45,12 +51,12 @@ export function LogExplorerPage() {
       {logs.data && (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Level</th><th className="px-4 py-3">Service</th><th className="px-4 py-3">Message</th></tr></thead><tbody className="divide-y divide-slate-100">
-            {logs.data.events.map((event) => <tr key={event.id} onClick={() => setSelected(event)} className="cursor-pointer hover:bg-sky-50"><td className="whitespace-nowrap px-4 py-3 text-slate-500">{new Date(event.timestamp).toLocaleString()}</td><td className="px-4 py-3"><span className={`rounded px-2 py-1 text-xs font-bold ${levelStyles[event.level] ?? levelStyles.DEBUG}`}>{event.level}</span></td><td className="px-4 py-3 font-medium text-slate-700">{event.service}</td><td className="max-w-xl truncate px-4 py-3 text-slate-700">{event.message}</td></tr>)}
+            {logs.data.events.map((event) => <tr key={event.id} onClick={() => setSelectedId(event.id)} className="cursor-pointer hover:bg-sky-50"><td className="whitespace-nowrap px-4 py-3 text-slate-500">{new Date(event.timestamp).toLocaleString()}</td><td className="px-4 py-3"><span className={`rounded px-2 py-1 text-xs font-bold ${levelStyles[event.level] ?? levelStyles.DEBUG}`}>{event.level}</span></td><td className="px-4 py-3 font-medium text-slate-700">{event.service}</td><td className="max-w-xl truncate px-4 py-3 text-slate-700">{event.message}</td></tr>)}
           </tbody></table></div>
           {logs.data.events.length === 0 && <p className="p-8 text-center text-slate-500">No events match these filters.</p>}
         </div>
       )}
-      {selected && <aside aria-label="Event details" className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-auto border-l border-slate-200 bg-white p-6 shadow-2xl"><button onClick={() => setSelected(null)} className="float-right rounded-lg border px-3 py-1.5 text-sm">Close</button><h2 className="mb-4 text-xl font-bold">Event details</h2><pre className="overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(selected, null, 2)}</pre></aside>}
+      {selectedId && <aside aria-label="Event details" className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-auto border-l border-slate-200 bg-white p-6 shadow-2xl"><button onClick={() => setSelectedId(null)} className="float-right rounded-lg border px-3 py-1.5 text-sm">Close</button><h2 className="mb-4 text-xl font-bold">Event details</h2>{detail.isLoading && <p className="text-slate-500">Loading event details...</p>}{detail.isError && <p role="alert" className="text-rose-700">Unable to load event details.</p>}{detail.data && <pre className="overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(detail.data, null, 2)}</pre>}</aside>}
     </main>
   )
 }
