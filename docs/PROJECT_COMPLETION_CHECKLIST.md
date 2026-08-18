@@ -664,22 +664,35 @@ frontend lint/typecheck, 12/12 Vitest tests, and production build also passed.
 
 ### Tasks
 
-- [ ] confirm actual `log_events` schema;
-- [ ] confirm `receivedAt` and client `timestamp` are distinct;
-- [ ] confirm server-controlled `expireAt`;
-- [ ] confirm `organizationId`, `projectId`, and `apiKeyId`;
-- [ ] confirm optional `eventId`;
-- [ ] confirm fingerprint strategy;
-- [ ] confirm exception/context/tag bounds;
-- [ ] verify TTL index metadata;
-- [ ] verify critical compound indexes;
-- [ ] verify unique indexes for configuration collections;
-- [ ] remove redundant indexes only after measurement;
-- [ ] add integration tests for index initialization.
+- [x] confirm actual `log_events` schema;
+- [x] confirm `receivedAt` and client `timestamp` are distinct;
+- [x] confirm server-controlled `expireAt`;
+- [x] confirm `organizationId`, `projectId`, and `apiKeyId`;
+- [x] confirm optional `eventId`;
+- [x] confirm fingerprint strategy;
+- [x] confirm exception/context/tag bounds;
+- [x] verify TTL index metadata;
+- [x] verify critical compound indexes;
+- [x] verify unique indexes for configuration collections;
+- [x] remove redundant indexes only after measurement;
+- [x] add integration tests for index initialization.
 
 ### Exit criteria
 
-- [ ] The documented schema and actual Mongo collections/indexes match exactly.
+- [x] The documented schema and actual Mongo collections/indexes match exactly.
+
+Evidence (2026-08-18): `MongoSchemaAndIndexIntegrationTest` starts MongoDB 7,
+persists a fully populated event through `LogEventPersistenceService`, and
+asserts the raw snake-case BSON fields, distinct producer/server timestamps,
+server-anchored TTL value, tenant/API-key authority fields, fingerprint, nested
+exception, context, and tags. It also reads `listIndexes()` to verify the
+absolute `expire_at` TTL metadata, all critical log query indexes, alert rule
+and occurrence indexes, and unique configuration indexes. Missing
+project/environment and project/service indexes were added. Exception details
+now persist in the documented shape rather than under a compatibility `value`
+wrapper. `LogEventTest` proves a future producer timestamp cannot extend
+retention. No existing index was removed because D2 measurements have not yet
+been performed; this satisfies the no-removal-before-measurement guard.
 
 ---
 

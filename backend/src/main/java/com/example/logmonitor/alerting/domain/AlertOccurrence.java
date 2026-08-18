@@ -1,6 +1,7 @@
 package com.example.logmonitor.alerting.domain;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "alert_occurrences")
+@CompoundIndex(name = "idx_alert_occurrences_project_triggered", def = "{'project_id': 1, 'triggered_at': -1}")
 public class AlertOccurrence {
 
     @Id
