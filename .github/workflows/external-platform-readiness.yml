@@ -1,0 +1,23 @@
+name: External platform readiness
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    # Configure the repository variable PLATFORM_READINESS_URL before enabling
+    # this job. The workflow is intentionally independent of the platform JVM.
+    if: ${{ vars.PLATFORM_READINESS_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v4
+
+      - name: Probe readiness endpoint
+        shell: pwsh
+        run: ./ops/monitoring/external/check-readiness.ps1 -Uri "${{ vars.PLATFORM_READINESS_URL }}"

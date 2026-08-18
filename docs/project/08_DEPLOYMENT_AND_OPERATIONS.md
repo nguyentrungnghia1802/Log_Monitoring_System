@@ -205,6 +205,26 @@ Avoid circular dependency where the only alert path for the monitoring platform 
 
 A secondary external health check is recommended.
 
+### External monitoring configuration
+
+The repository includes a deployable monitoring baseline:
+
+- `.github/workflows/external-platform-readiness.yml` runs every five minutes
+  on GitHub-hosted infrastructure and executes
+  `ops/monitoring/external/check-readiness.ps1`;
+- configure the repository variable `PLATFORM_READINESS_URL` with the public
+  HTTPS readiness URL before enabling the scheduled check;
+- `ops/monitoring/prometheus/scrape-config.example.yml` scrapes backend
+  metrics and an independent Blackbox Exporter readiness probe;
+- `ops/monitoring/prometheus/platform-alerts.yml` defines alerts for API and
+  readiness outage, queue pressure, backpressure, persistence/Mongo failures,
+  heap/GC pressure, and alert-delivery failures.
+
+The GitHub-hosted probe and the Prometheus/Blackbox path must run outside the
+backend deployment boundary. A failed application alert path therefore cannot
+hide a total platform failure. Keep the Prometheus scraper allowlisted at the
+reverse proxy using `ops/nginx/actuator-metrics.conf`.
+
 ---
 
 ## 8. Backup

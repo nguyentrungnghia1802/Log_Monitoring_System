@@ -326,6 +326,12 @@ MongoDB container. The Prometheus endpoint must be restricted at the reverse
 proxy using `ops/nginx/actuator-metrics.conf`, with the example private ranges
 replaced by the actual scraper allowlist.
 
+External monitoring configuration is kept outside the application runtime:
+the scheduled GitHub workflow probes `PLATFORM_READINESS_URL`, while the
+Prometheus example uses an independent Blackbox Exporter target. This split
+must be exercised in staging with a deliberately stopped backend before
+production rollout.
+
 ---
 
 ## 9. Load test plan

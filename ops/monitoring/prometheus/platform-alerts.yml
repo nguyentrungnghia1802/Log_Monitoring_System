@@ -1,0 +1,93 @@
+groups:
+  - name: log-monitoring-platform
+    interval: 30s
+    rules:
+      - alert: PlatformApiUnavailable
+        expr: up{job="log-monitoring-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: log-monitoring-platform
+        annotations:
+          summary: Log monitoring API is unavailable
+          description: Prometheus cannot scrape the backend metrics endpoint for two minutes.
+
+      - alert: PlatformReadinessUnavailable
+        expr: probe_success{job="log-monitoring-readiness"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: log-monitoring-platform
+        annotations:
+          summary: Log monitoring readiness probe is failing
+          description: An external probe cannot reach the platform readiness endpoint.
+
+      - alert: PlatformQueueNearCapacity
+        expr: ingestion_queue_depth / ingestion_queue_capacity > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: log-monitoring-platform
+        annotations:
+          summary: Ingestion queue is above 80 percent capacity
+          description: Queue depth has remained above the operational threshold for five minutes.
+
+      - alert: PlatformBackpressure
+        expr: increase(ingestion_rejected_backpressure_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: log-monitoring-platform
+        annotations:
+          summary: Ingestion backpressure is rejecting events
+          description: The bounded ingestion queue rejected events during the last five minutes.
+
+      - alert: PlatformPersistenceFailures
+        expr: increase(ingestion_persistence_failures_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: log-monitoring-platform
+        annotations:
+          summary: Persistence batches are exhausting retries
+          description: MongoDB persistence failures reached terminal retry exhaustion.
+
+      - alert: PlatformMongoCommandErrors
+        expr: increase(mongodb_command_errors_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: log-monitoring-platform
+        annotations:
+          summary: MongoDB commands are failing
+          description: MongoDB command errors were recorded by the backend.
+
+      - alert: PlatformHeapPressure
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: log-monitoring-platform
+        annotations:
+          summary: Backend heap usage is above 85 percent
+          description: JVM heap pressure has remained high for ten minutes.
+
+      - alert: PlatformGcPressure
+        expr: rate(jvm_gc_pause_seconds_count[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: log-monitoring-platform
+        annotations:
+          summary: Backend garbage collection is unusually frequent
+          description: JVM GC pause frequency has remained above one pause per second.
+
+      - alert: PlatformAlertDeliveryFailures
+        expr: increase(alert_delivery_failure_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: log-monitoring-platform
+        annotations:
+          summary: Platform alert delivery is failing
+          description: Alert notifications failed during the last five minutes.
