@@ -10,25 +10,34 @@ export function HomePage() {
             Centralized Log Monitoring System
           </h1>
           <p className="max-w-3xl text-lg text-slate-600">
-            Ingest, search, stream, and alert on structured application events through one secure management console.
+            Ingest, search, stream, and alert on structured application events
+            through one secure management console.
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h2 className="text-xl font-semibold">Backend</h2>
-            <p className="mt-2 text-sm text-slate-600">Java 21, Spring Boot 3.x, Actuator, MongoDB, security and WebSocket foundation.</p>
+            <p className="mt-2 text-sm text-slate-600">
+              Java 21, Spring Boot 3.x, Actuator, MongoDB, security and
+              WebSocket foundation.
+            </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h2 className="text-xl font-semibold">Frontend</h2>
-            <p className="mt-2 text-sm text-slate-600">React, TypeScript, Vite, TanStack Query, and Router scaffolding.</p>
+            <p className="mt-2 text-sm text-slate-600">
+              React, TypeScript, Vite, TanStack Query, and Router scaffolding.
+            </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h2 className="text-xl font-semibold">Operations</h2>
-            <p className="mt-2 text-sm text-slate-600">Docker Compose, local MongoDB profile, health checks, and test containers.</p>
+            <p className="mt-2 text-sm text-slate-600">
+              Docker Compose, local MongoDB profile, health checks, and test
+              containers.
+            </p>
           </div>
         </div>
       </div>
     </main>
-  )
+  );
 }

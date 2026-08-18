@@ -32,7 +32,8 @@ export function LiveTailPage() {
     }
 
     const wsUrl =
-      import.meta.env.VITE_WS_URL?.trim() || `ws://${window.location.hostname}:8080/ws-logs`;
+      import.meta.env.VITE_WS_URL?.trim() ||
+      `ws://${window.location.hostname}:8080/ws-logs`;
     const destination = `/user/queue/projects/${projectId}/livetail`;
     const subscriptionRef = {
       current: undefined as StompSubscription | undefined,

@@ -478,14 +478,36 @@ E2E/load scripts should be standardized later in repository scripts.
 
 ## 14. Static/security checks
 
-Recommended CI roadmap:
+The repository now has executable local gates for the implemented checks:
 
-- Spotless or equivalent formatting;
-- Checkstyle/PMD/SpotBugs where useful;
-- dependency vulnerability scan;
-- secret scanning;
-- frontend lint/typecheck;
-- container scan;
+Backend:
+
+```bash
+./gradlew checkstyleMain checkstyleTest check build --no-parallel
+```
+
+Frontend:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm audit --audit-level=high
+```
+
+The same gates run in `.github/workflows/quality-gates.yml`. Dependabot is
+configured for Gradle, npm, and GitHub Actions updates. Gitleaks and GitHub
+Dependency Review provide the repository-history and pull-request checks.
+
+Remaining production-hardening checks are intentionally explicit rather than
+silently treated as passed:
+
+- Java formatter adoption (Spotless or equivalent) beyond the current stable
+  Checkstyle baseline;
+- container/image scanning after production image definitions exist;
+- license review and remote workflow runs on the hosting provider;
 - test coverage thresholds only for meaningful critical modules.
 
 Coverage percentage must not replace behavioral test quality.
